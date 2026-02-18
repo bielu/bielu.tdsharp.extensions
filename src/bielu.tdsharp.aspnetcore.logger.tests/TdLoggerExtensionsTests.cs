@@ -79,7 +79,7 @@ public class TdLoggerExtensionsTests
     public void ExtractLoggerCategory_WithValidTdLibLogFormat_ShouldExtractSourceFile(string message, string expectedCategory)
     {
         // Act
-        var result = TdLoggerExtensions.ExtractLoggerCategory(message);
+        var result = LogStreamCallback.ExtractLoggerCategory(message);
 
         // Assert
         result.Should().Be(expectedCategory);
@@ -93,7 +93,7 @@ public class TdLoggerExtensionsTests
     public void ExtractLoggerCategory_WithNoSourceFile_ShouldReturnDefaultCategory(string? message, string expectedCategory)
     {
         // Act
-        var result = TdLoggerExtensions.ExtractLoggerCategory(message!);
+        var result = LogStreamCallback.ExtractLoggerCategory(message!);
 
         // Assert
         result.Should().Be(expectedCategory);
