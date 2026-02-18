@@ -15,6 +15,7 @@
     <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="NSubstitute" />
     <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="tdlib.native" />
   </ItemGroup>
 
   <ItemGroup>
