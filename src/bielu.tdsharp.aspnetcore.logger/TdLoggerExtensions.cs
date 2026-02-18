@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using TdLib;
 using TdLib.Bindings;
@@ -35,12 +36,21 @@ public static class TdLoggerExtensions
     private static Callback? _fatalErrorCallback;
 
     /// <summary>
+    /// Regex pattern to extract source file from TDLib log messages.
+    /// Matches patterns like [AuthData.cpp:122] or [Td.cpp:1346]
+    /// </summary>
+    private static readonly Regex SourceFilePattern = new(
+        @"\[([A-Za-z0-9_]+)\.cpp:\d+\]",
+        RegexOptions.Compiled);
+
+    /// <summary>
     /// Configures TDLib to route all log messages to the specified ILoggerFactory.
     /// </summary>
     /// <remarks>
     /// <para>
     /// This method sets up TDLib's log message callback to forward all TDLib internal logs
-    /// to .NET's ILoggerFactory. Each log message is routed through a logger with category "TDLib".
+    /// to .NET's ILoggerFactory. Each log message is routed through a logger with a category
+    /// based on the TDLib source file (e.g., "TDLib.AuthData" for messages from AuthData.cpp).
     /// </para>
     /// <para>
     /// This method is not thread-safe and should be called once during application initialization.
@@ -114,6 +124,26 @@ public static class TdLoggerExtensions
     }
 
     /// <summary>
+    /// Extracts the source file name from a TDLib log message to use as logger category.
+    /// </summary>
+    /// <param name="message">The raw TDLib log message</param>
+    /// <returns>Logger category like "TDLib.AuthData" or "TDLib" if not found</returns>
+    internal static string ExtractLoggerCategory(string message)
+    {
+        if (string.IsNullOrEmpty(message))
+            return "TDLib";
+
+        var match = SourceFilePattern.Match(message);
+        if (match.Success && match.Groups.Count > 1)
+        {
+            var sourceFile = match.Groups[1].Value;
+            return $"TDLib.{sourceFile}";
+        }
+
+        return "TDLib";
+    }
+
+    /// <summary>
     /// Callback handler for ALL TDLib log messages.
     /// </summary>
     private static void OnLogMessage(int verbosityLevel, IntPtr messagePtr)
@@ -133,12 +163,13 @@ public static class TdLoggerExtensions
             if (string.IsNullOrEmpty(message))
                 return;
 
-            // Create a logger for TDLib messages
-            var logger = currentLoggerFactory.CreateLogger("TDLib");
+            // Extract the source file from the message to use as logger category
+            var category = ExtractLoggerCategory(message);
+            var logger = currentLoggerFactory.CreateLogger(category);
             var logLevel = ToLogLevel(verbosityLevel);
 
             // Log the message at the appropriate level
-            logger.Log(logLevel, "[TDLib] {Message}", message);
+            logger.Log(logLevel, "{Message}", message);
         }
         catch (Exception ex)
         {
@@ -166,7 +197,7 @@ public static class TdLoggerExtensions
             var message = Marshal.PtrToStringAnsi(messagePtr);
             // Create a logger specifically for TDLib fatal errors
             var logger = currentLoggerFactory.CreateLogger("TDLib.FatalError");
-            logger.LogCritical("[TDLib Fatal] {Message}", message);
+            logger.LogCritical("{Message}", message);
         }
         catch (Exception ex)
         {

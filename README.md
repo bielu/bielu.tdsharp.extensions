@@ -10,7 +10,7 @@ This library provides seamless integration between TDLib's internal logging syst
 
 - **TDLib → .NET Logging**: Route ALL TDLib internal logs to your .NET `ILoggerFactory`
 - **Full Verbosity Support**: Captures all log levels (Fatal, Error, Warning, Info, Debug, Verbose)
-- **Per-Category Logging**: Logs appear under "TDLib" category in your logging output
+- **Per-Source Category Logging**: Logs are categorized by their TDLib C++ source file (e.g., `TDLib.AuthData`, `TDLib.Td`, `TDLib.Client`)
 - **Standard Integration**: Works with any logging provider (Console, File, Serilog, NLog, Application Insights, etc.)
 
 ### Installation
@@ -67,6 +67,13 @@ builder.Services.AddSingleton<TdClient>(sp =>
 ### How It Works
 
 The library uses TDLib's native `td_set_log_message_callback` function to intercept all log messages from TDLib's internal logging system. These messages are then forwarded to your configured `ILoggerFactory`, allowing them to flow through your standard .NET logging pipeline.
+
+**Logger categories are extracted from the TDLib source file** mentioned in each log message. For example:
+- `[ 4][t 5][1771420471.389248132][AuthData.cpp:122]...` → Category: `TDLib.AuthData`
+- `[ 3][t 2][1771414660.623883962][Td.cpp:1346]...` → Category: `TDLib.Td`
+- `[ 3][t 0][1771414660.622062444][Client.cpp:600]...` → Category: `TDLib.Client`
+
+This allows you to filter TDLib logs by component in your logging configuration.
 
 ### Log Level Mapping
 
