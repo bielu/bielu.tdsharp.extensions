@@ -73,44 +73,6 @@ public static class TdLoggerExtensions
     }
 
     /// <summary>
-    /// Configures TDLib to route all log messages to the specified ILogger.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// This method sets up TDLib's log message callback to forward all TDLib internal logs
-    /// to the provided ILogger instance.
-    /// </para>
-    /// <para>
-    /// This method is not thread-safe and should be called once during application initialization.
-    /// </para>
-    /// </remarks>
-    /// <param name="client">The TdClient instance</param>
-    /// <param name="logger">The ILogger to use for logging</param>
-    /// <param name="logLevel">The TDLib log level to set (controls which messages TDLib generates)</param>
-    public static void UseTdLibLogging(this TdClient client, ILogger logger, TdLogLevel logLevel = TdLogLevel.Warning)
-    {
-        ArgumentNullException.ThrowIfNull(client);
-        ArgumentNullException.ThrowIfNull(logger);
-
-        lock (_lock)
-        {
-            // Create a factory that always returns the provided logger
-            _loggerFactory = new SingleLoggerFactory(logger);
-
-            // Set the verbosity level
-            client.Bindings.SetLogVerbosityLevel((int)logLevel);
-
-            // Set up the log message callback to route ALL log messages to ILogger
-            _nativeCallback = OnLogMessage;
-            TdNativeLogging.SetLogMessageCallback((int)logLevel, _nativeCallback);
-
-            // Also set up fatal error callback for critical errors
-            _fatalErrorCallback = OnFatalError;
-            client.Bindings.SetLogFatalErrorCallback(_fatalErrorCallback);
-        }
-    }
-
-    /// <summary>
     /// Configures TDLib to route all log messages to the specified ILoggerFactory,
     /// with an option to disable default logging output.
     /// </summary>
@@ -121,28 +83,6 @@ public static class TdLoggerExtensions
     public static void UseTdLibLogging(this TdClient client, ILoggerFactory loggerFactory, TdLogLevel logLevel, bool disableDefaultLogging)
     {
         UseTdLibLogging(client, loggerFactory, logLevel);
-
-        if (disableDefaultLogging)
-        {
-            // Disable default logging by setting an empty log stream
-            client.Execute(new TdApi.SetLogStream
-            {
-                LogStream = new TdApi.LogStream.LogStreamEmpty()
-            });
-        }
-    }
-
-    /// <summary>
-    /// Configures TDLib to route all log messages to the specified ILogger,
-    /// with an option to disable default logging output.
-    /// </summary>
-    /// <param name="client">The TdClient instance</param>
-    /// <param name="logger">The ILogger to use for logging</param>
-    /// <param name="logLevel">The TDLib log level to set</param>
-    /// <param name="disableDefaultLogging">Whether to disable default console/stderr logging</param>
-    public static void UseTdLibLogging(this TdClient client, ILogger logger, TdLogLevel logLevel, bool disableDefaultLogging)
-    {
-        UseTdLibLogging(client, logger, logLevel);
 
         if (disableDefaultLogging)
         {
@@ -297,33 +237,5 @@ public static class TdLoggerExtensions
             LogLevel.None => TdLogLevel.Fatal,
             _ => TdLogLevel.Info
         };
-    }
-
-    /// <summary>
-    /// Simple logger factory implementation that always returns a single logger instance
-    /// </summary>
-    private sealed class SingleLoggerFactory : ILoggerFactory
-    {
-        private readonly ILogger _logger;
-
-        public SingleLoggerFactory(ILogger logger)
-        {
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        }
-
-        public ILogger CreateLogger(string categoryName)
-        {
-            return _logger;
-        }
-
-        public void AddProvider(ILoggerProvider provider)
-        {
-            // No-op for single logger factory
-        }
-
-        public void Dispose()
-        {
-            // No-op for single logger factory
-        }
     }
 }
