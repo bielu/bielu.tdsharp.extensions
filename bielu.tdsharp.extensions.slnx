@@ -1,8 +1,0 @@
-<Solution>
-  <Folder Name="/src/">
-    <Project Path="src/bielu.tdsharp.aspnetcore.logger/bielu.tdsharp.aspnetcore.logger.csproj" />
-  </Folder>
-  <Folder Name="/tests/">
-    <Project Path="tests/bielu.tdsharp.aspnetcore.logger.tests/bielu.tdsharp.aspnetcore.logger.tests.csproj" />
-  </Folder>
-</Solution>

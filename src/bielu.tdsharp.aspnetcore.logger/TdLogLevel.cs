@@ -42,5 +42,12 @@ public enum TdLogLevel
     /// <summary>
     /// Maximum verbosity level
     /// </summary>
+    /// <remarks>
+    /// This represents TDLib's maximum verbosity setting (value 1024).
+    /// While TDLib's standard verbosity levels are 0-5, this special value
+    /// enables all possible diagnostic output. In practice, it behaves similarly
+    /// to Verbose (5) but may include additional internal diagnostics.
+    /// Maps to LogLevel.Trace in Microsoft.Extensions.Logging.
+    /// </remarks>
     All = 1024
 }
