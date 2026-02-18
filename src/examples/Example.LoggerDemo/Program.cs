@@ -5,6 +5,7 @@
 using bielu.tdsharp.aspnetcore.logger;
 using Microsoft.Extensions.Logging;
 using TdLib;
+using TdLib.Bindings;
 
 // Create a standard .NET LoggerFactory with console output
 using var loggerFactory = LoggerFactory.Create(builder =>

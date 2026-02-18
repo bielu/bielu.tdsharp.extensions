@@ -166,7 +166,7 @@ public static class TdLoggerExtensions
             // Extract the source file from the message to use as logger category
             var category = ExtractLoggerCategory(message);
             var logger = currentLoggerFactory.CreateLogger(category);
-            var logLevel = ToLogLevel(verbosityLevel);
+            var logLevel = ((TdLogLevel)verbosityLevel).ToLogLevel();
 
             // Log the message at the appropriate level
             logger.Log(logLevel, "{Message}", message);
@@ -215,33 +215,13 @@ public static class TdLoggerExtensions
     /// than TDLib's verbosity system. TDLib's All (1024) represents maximum verbosity,
     /// which semantically aligns with Trace in the .NET logging hierarchy.
     /// </remarks>
-    /// <param name="tdLogLevel">TDLib verbosity level (0-5+)</param>
+    /// <param name="tdLogLevel">TDLib verbosity level</param>
     /// <returns>Corresponding Microsoft.Extensions.Logging LogLevel</returns>
     public static LogLevel ToLogLevel(this TdLogLevel tdLogLevel)
     {
-        return tdLogLevel switch
+        return (int)tdLogLevel switch
         {
-            TdLogLevel.Fatal => LogLevel.Critical,
-            TdLogLevel.Error => LogLevel.Error,
-            TdLogLevel.Warning => LogLevel.Warning,
-            TdLogLevel.Info => LogLevel.Information,
-            TdLogLevel.Debug => LogLevel.Debug,
-            TdLogLevel.Verbose => LogLevel.Trace,
-            TdLogLevel.All => LogLevel.Trace,
-            _ => LogLevel.Information
-        };
-    }
-
-    /// <summary>
-    /// Maps TDLib verbosity level integer to Microsoft.Extensions.Logging LogLevel
-    /// </summary>
-    /// <param name="verbosityLevel">TDLib verbosity level (0-5+)</param>
-    /// <returns>Corresponding Microsoft.Extensions.Logging LogLevel</returns>
-    public static LogLevel ToLogLevel(int verbosityLevel)
-    {
-        return verbosityLevel switch
-        {
-            <= 0 => LogLevel.Critical,
+            0 => LogLevel.Critical,
             1 => LogLevel.Error,
             2 => LogLevel.Warning,
             3 => LogLevel.Information,

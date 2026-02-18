@@ -29,6 +29,7 @@ This is the primary use case - injecting `ILoggerFactory` into TDLib's log strea
 using bielu.tdsharp.aspnetcore.logger;
 using Microsoft.Extensions.Logging;
 using TdLib;
+using TdLib.Bindings;
 
 // Create your standard .NET LoggerFactory
 using var loggerFactory = LoggerFactory.Create(builder =>

@@ -4,6 +4,7 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
+using TdLib.Bindings;
 
 namespace bielu.tdsharp.aspnetcore.logger.tests;
 
@@ -27,23 +28,6 @@ public class TdLoggerExtensionsTests
     }
 
     [Theory]
-    [InlineData(0, LogLevel.Critical)]
-    [InlineData(1, LogLevel.Error)]
-    [InlineData(2, LogLevel.Warning)]
-    [InlineData(3, LogLevel.Information)]
-    [InlineData(4, LogLevel.Debug)]
-    [InlineData(5, LogLevel.Trace)]
-    [InlineData(1024, LogLevel.Trace)]
-    public void ToLogLevel_ShouldMapIntegerVerbosityLevelCorrectly(int verbosityLevel, LogLevel expectedLogLevel)
-    {
-        // Act
-        var result = TdLoggerExtensions.ToLogLevel(verbosityLevel);
-
-        // Assert
-        result.Should().Be(expectedLogLevel);
-    }
-
-    [Theory]
     [InlineData(LogLevel.Critical, TdLogLevel.Fatal)]
     [InlineData(LogLevel.Error, TdLogLevel.Error)]
     [InlineData(LogLevel.Warning, TdLogLevel.Warning)]
@@ -61,16 +45,16 @@ public class TdLoggerExtensionsTests
     }
 
     [Fact]
-    public void ToLogLevel_WithInvalidTdLogLevel_ShouldReturnInformation()
+    public void ToLogLevel_WithInvalidTdLogLevel_ShouldReturnTrace()
     {
-        // Arrange
-        var invalidLevel = (TdLogLevel)999;
+        // Arrange - values > 5 map to Trace
+        var highLevel = (TdLogLevel)999;
 
         // Act
-        var result = invalidLevel.ToLogLevel();
+        var result = highLevel.ToLogLevel();
 
         // Assert
-        result.Should().Be(LogLevel.Information);
+        result.Should().Be(LogLevel.Trace);
     }
 
     [Fact]
