@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="bielu.tdsharp.aspnetcore.logger.tests/bielu.tdsharp.aspnetcore.logger.tests.csproj" />
+  <Project Path="bielu.tdsharp.aspnetcore.logger/bielu.tdsharp.aspnetcore.logger.csproj" />
+</Solution>
