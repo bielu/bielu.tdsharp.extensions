@@ -1,0 +1,24 @@
+<Project>
+
+    <Import Project="../version.props"/>
+
+    <PropertyGroup>
+      <Title>$(MSBuildProjectName)</Title>
+      <AssemblyName>$(MSBuildProjectName)</AssemblyName>
+      <AssemblyVersion>$(Version)</AssemblyVersion>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <Authors>Arkadiusz Biel</Authors>
+        <PackageOutputPath>$(MSBuildThisFileDirectory)../dist</PackageOutputPath>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <RepositoryUrl>https://github.com/bielu/bielu.tdsharp.extensions</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <PackageProjectUrl>https://github.com/bielu/bielu.tdsharp.extensions</PackageProjectUrl>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="$(MSBuildThisFileDirectory)../README.md" Pack="true" PackagePath="/" />
+    </ItemGroup>
+
+</Project>
