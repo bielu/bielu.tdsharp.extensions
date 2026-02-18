@@ -52,7 +52,9 @@ public class TdLibLogger : ILogger
             return false;
 
         var tdLogLevel = logLevel.ToTdLogLevel();
-        return (int)tdLogLevel >= (int)_minLevel;
+        // In TDLib, lower values = more severe (Fatal=0, Error=1, etc.)
+        // So we should log if tdLogLevel <= minLevel
+        return (int)tdLogLevel <= (int)_minLevel;
     }
 
     /// <inheritdoc />

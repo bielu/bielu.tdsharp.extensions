@@ -2,8 +2,9 @@
 //
 // SPDX-License-Identifier: MIT
 
+using FluentAssertions;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using TdLib;
 
 namespace bielu.tdsharp.aspnetcore.logger.tests;
@@ -15,10 +16,14 @@ public class TdLibLoggerFactoryExtensionsTests
     {
         // Arrange
         ILoggerFactory factory = null!;
-        var mockClient = new Mock<TdClient>();
+        var mockClient = Substitute.For<TdClient>();
 
-        // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => factory.AddTdLib(mockClient.Object));
+        // Act
+        var act = () => factory.AddTdLib(mockClient);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("factory");
     }
 
     [Fact]
@@ -27,8 +32,12 @@ public class TdLibLoggerFactoryExtensionsTests
         // Arrange
         var factory = LoggerFactory.Create(builder => { });
 
-        // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => factory.AddTdLib(null!));
+        // Act
+        var act = () => factory.AddTdLib(null!);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("client");
     }
 
     [Fact]
@@ -36,14 +45,14 @@ public class TdLibLoggerFactoryExtensionsTests
     {
         // Arrange
         var factory = LoggerFactory.Create(builder => { });
-        var mockClient = new Mock<TdClient>();
+        var mockClient = Substitute.For<TdClient>();
 
         // Act
-        var result = factory.AddTdLib(mockClient.Object, TdLogLevel.Info);
+        var result = factory.AddTdLib(mockClient, TdLogLevel.Info);
 
         // Assert
-        Assert.NotNull(result);
-        Assert.Same(factory, result);
+        result.Should().NotBeNull();
+        result.Should().BeSameAs(factory);
     }
 
     [Fact]
@@ -51,13 +60,13 @@ public class TdLibLoggerFactoryExtensionsTests
     {
         // Arrange
         var factory = LoggerFactory.Create(builder => { });
-        var mockClient = new Mock<TdClient>();
-        factory.AddTdLib(mockClient.Object, TdLogLevel.Info);
+        var mockClient = Substitute.For<TdClient>();
+        factory.AddTdLib(mockClient, TdLogLevel.Info);
 
         // Act
         var logger = factory.CreateLogger("TestCategory");
 
         // Assert
-        Assert.NotNull(logger);
+        logger.Should().NotBeNull();
     }
 }

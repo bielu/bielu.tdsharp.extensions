@@ -4,6 +4,7 @@
 
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
+using TdLib;
 using TdLib.Bindings;
 
 namespace bielu.tdsharp.aspnetcore.logger;
@@ -53,7 +54,7 @@ public static class TdLoggerExtensions
     /// <param name="client">The TdClient instance</param>
     /// <param name="loggerFactory">The ILoggerFactory to use for creating loggers</param>
     /// <param name="logLevel">The TDLib log level to set</param>
-    public static void UseTdLibLogging(this TdLib.TdClient client, ILoggerFactory loggerFactory, TdLogLevel logLevel = TdLogLevel.Warning)
+    public static void UseTdLibLogging(this TdClient client, ILoggerFactory loggerFactory, TdLogLevel logLevel = TdLogLevel.Warning)
     {
         ArgumentNullException.ThrowIfNull(client);
         ArgumentNullException.ThrowIfNull(loggerFactory);
@@ -88,7 +89,7 @@ public static class TdLoggerExtensions
     /// <param name="client">The TdClient instance</param>
     /// <param name="logger">The ILogger to use for logging</param>
     /// <param name="logLevel">The TDLib log level to set</param>
-    public static void UseTdLibLogging(this TdLib.TdClient client, ILogger logger, TdLogLevel logLevel = TdLogLevel.Warning)
+    public static void UseTdLibLogging(this TdClient client, ILogger logger, TdLogLevel logLevel = TdLogLevel.Warning)
     {
         ArgumentNullException.ThrowIfNull(client);
         ArgumentNullException.ThrowIfNull(logger);
@@ -116,7 +117,7 @@ public static class TdLoggerExtensions
     /// <param name="loggerFactory">The ILoggerFactory to use for creating loggers</param>
     /// <param name="logLevel">The TDLib log level to set</param>
     /// <param name="disableDefaultLogging">Whether to disable default console/stderr logging</param>
-    public static void UseTdLibLogging(this TdLib.TdClient client, ILoggerFactory loggerFactory, TdLogLevel logLevel, bool disableDefaultLogging)
+    public static void UseTdLibLogging(this TdClient client, ILoggerFactory loggerFactory, TdLogLevel logLevel, bool disableDefaultLogging)
     {
         UseTdLibLogging(client, loggerFactory, logLevel);
 
@@ -138,7 +139,7 @@ public static class TdLoggerExtensions
     /// <param name="logger">The ILogger to use for logging</param>
     /// <param name="logLevel">The TDLib log level to set</param>
     /// <param name="disableDefaultLogging">Whether to disable default console/stderr logging</param>
-    public static void UseTdLibLogging(this TdLib.TdClient client, ILogger logger, TdLogLevel logLevel, bool disableDefaultLogging)
+    public static void UseTdLibLogging(this TdClient client, ILogger logger, TdLogLevel logLevel, bool disableDefaultLogging)
     {
         UseTdLibLogging(client, logger, logLevel);
 

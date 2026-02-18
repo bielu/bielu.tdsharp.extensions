@@ -13,7 +13,8 @@
     <PackageReference Include="Microsoft.Extensions.Logging" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
-    <PackageReference Include="Moq" />
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="FluentAssertions" />
   </ItemGroup>
 
   <ItemGroup>

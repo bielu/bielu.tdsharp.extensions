@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+using FluentAssertions;
 using Microsoft.Extensions.Logging;
 
 namespace bielu.tdsharp.aspnetcore.logger.tests;
@@ -22,7 +23,7 @@ public class TdLoggerExtensionsTests
         var result = tdLogLevel.ToLogLevel();
 
         // Assert
-        Assert.Equal(expectedLogLevel, result);
+        result.Should().Be(expectedLogLevel);
     }
 
     [Theory]
@@ -39,7 +40,7 @@ public class TdLoggerExtensionsTests
         var result = TdLoggerExtensions.ToLogLevel(verbosityLevel);
 
         // Assert
-        Assert.Equal(expectedLogLevel, result);
+        result.Should().Be(expectedLogLevel);
     }
 
     [Theory]
@@ -56,7 +57,7 @@ public class TdLoggerExtensionsTests
         var result = logLevel.ToTdLogLevel();
 
         // Assert
-        Assert.Equal(expectedTdLogLevel, result);
+        result.Should().Be(expectedTdLogLevel);
     }
 
     [Fact]
@@ -69,7 +70,7 @@ public class TdLoggerExtensionsTests
         var result = invalidLevel.ToLogLevel();
 
         // Assert
-        Assert.Equal(LogLevel.Information, result);
+        result.Should().Be(LogLevel.Information);
     }
 
     [Fact]
@@ -82,6 +83,6 @@ public class TdLoggerExtensionsTests
         var result = invalidLevel.ToTdLogLevel();
 
         // Assert
-        Assert.Equal(TdLogLevel.Info, result);
+        result.Should().Be(TdLogLevel.Info);
     }
 }
