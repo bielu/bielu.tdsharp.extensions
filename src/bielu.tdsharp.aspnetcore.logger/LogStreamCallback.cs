@@ -61,9 +61,10 @@ public sealed class LogStreamCallback : IDisposable
         _loggerFactory = loggerFactory;
         _fatalErrorLogger = loggerFactory.CreateLogger("TDLib.FatalError");
         
-        // Create and pin the callback delegates to prevent garbage collection
+        // Create and pin the callback delegate to prevent garbage collection.
+        // The GCHandle keeps the delegate alive while native code holds a reference to it.
         _nativeCallback = OnLogMessage;
-        _callbackHandle = GCHandle.Alloc(_nativeCallback);
+        _callbackHandle = GCHandle.Alloc(_nativeCallback, GCHandleType.Normal);
         _fatalErrorCallback = OnFatalError;
     }
 
@@ -91,7 +92,11 @@ public sealed class LogStreamCallback : IDisposable
         // Set the verbosity level to control what messages TDLib generates
         client.Bindings.SetLogVerbosityLevel((int)logLevel);
 
-        // Disable default logging output (stderr/file) - we capture via callback instead
+        // Disable default logging output (stderr/file) to prevent duplicate logs.
+        // Note: LogStreamEmpty and td_set_log_message_callback operate independently.
+        // LogStreamEmpty prevents TDLib from writing to stderr/file, while
+        // td_set_log_message_callback intercepts messages before they would be written.
+        // Using both ensures logs only go through our callback.
         client.Execute(new TdApi.SetLogStream
         {
             LogStream = new TdApi.LogStream.LogStreamEmpty()
