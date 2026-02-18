@@ -18,9 +18,9 @@ namespace bielu.tdsharp.aspnetcore.logger;
 /// you have configured (Console, File, Application Insights, etc.).
 /// </para>
 /// <para>
-/// <b>Implementation:</b> This class uses a custom <see cref="ILogStream"/> implementation 
-/// (<see cref="LoggerLogStream"/>) that captures log messages directly via TDLib's native callback
-/// and forwards them to ILogger without intermediate files.
+/// <b>Implementation:</b> This class uses a custom <see cref="LogStreamCallback"/> class that inherits
+/// from <see cref="TdApi.LogStream"/> to capture log messages directly and forward them to ILogger
+/// without intermediate files.
 /// </para>
 /// <para>
 /// <b>Thread Safety:</b> The UseTdLibLogging methods are not thread-safe.
@@ -34,15 +34,14 @@ namespace bielu.tdsharp.aspnetcore.logger;
 public static class TdLoggerExtensions
 {
     private static readonly object _lock = new();
-    private static LogStreamManager? _logStreamManager;
-    private static LoggerLogStream? _loggerLogStream;
+    private static LogStreamCallback? _logStreamCallback;
 
     /// <summary>
     /// Configures TDLib to route all log messages to the specified ILoggerFactory.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// This method sets up a custom <see cref="LoggerLogStream"/> that captures TDLib log messages 
+    /// This method sets up a custom <see cref="LogStreamCallback"/> that captures TDLib log messages 
     /// directly via the native log message callback and forwards them to .NET's ILoggerFactory.
     /// Each log message is routed through a logger with a category
     /// based on the TDLib source file (e.g., "TDLib.AuthData" for messages from AuthData.cpp).
@@ -61,16 +60,14 @@ public static class TdLoggerExtensions
 
         lock (_lock)
         {
-            // Clean up any existing resources
-            _logStreamManager?.Dispose();
-            _loggerLogStream?.Dispose();
+            // Clean up any existing log stream
+            _logStreamCallback?.Dispose();
 
-            // Create the custom log stream that forwards to ILogger
-            _loggerLogStream = new LoggerLogStream(loggerFactory);
-
-            // Create and configure the log stream manager
-            _logStreamManager = new LogStreamManager(client);
-            _logStreamManager.SetLogStream(_loggerLogStream, logLevel);
+            // Create the custom log stream that inherits from TdApi.LogStream
+            _logStreamCallback = new LogStreamCallback(loggerFactory);
+            
+            // Activate the log stream
+            _logStreamCallback.Activate(client, logLevel);
         }
     }
 
@@ -91,42 +88,42 @@ public static class TdLoggerExtensions
     }
 
     /// <summary>
-    /// Configures TDLib to route all log messages to a custom <see cref="ILogStream"/> implementation.
+    /// Configures TDLib to route all log messages to a custom <see cref="LogStreamCallback"/> instance.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// This method allows you to provide your own custom log stream implementation
-    /// that receives TDLib log messages directly without intermediate files.
+    /// This method allows you to provide your own <see cref="LogStreamCallback"/> instance
+    /// for custom log handling configuration.
     /// </para>
     /// <para>
     /// This method is not thread-safe and should be called once during application initialization.
     /// </para>
     /// </remarks>
     /// <param name="client">The TdClient instance</param>
-    /// <param name="logStream">The custom log stream implementation</param>
+    /// <param name="logStreamCallback">The custom log stream callback instance</param>
     /// <param name="logLevel">The TDLib log level to set (controls which messages TDLib generates)</param>
-    public static void UseTdLibLogging(this TdClient client, ILogStream logStream, TdLogLevel logLevel = TdLogLevel.Warning)
+    public static void UseTdLibLogging(this TdClient client, LogStreamCallback logStreamCallback, TdLogLevel logLevel = TdLogLevel.Warning)
     {
         ArgumentNullException.ThrowIfNull(client);
-        ArgumentNullException.ThrowIfNull(logStream);
+        ArgumentNullException.ThrowIfNull(logStreamCallback);
 
         lock (_lock)
         {
-            // Clean up any existing resources
-            _logStreamManager?.Dispose();
-            _loggerLogStream?.Dispose();
-            _loggerLogStream = null;
+            // Clean up any existing log stream (but don't dispose the one passed in)
+            if (_logStreamCallback != null && _logStreamCallback != logStreamCallback)
+            {
+                _logStreamCallback.Dispose();
+            }
 
-            // Create and configure the log stream manager with the custom stream
-            _logStreamManager = new LogStreamManager(client);
-            _logStreamManager.SetLogStream(logStream, logLevel);
+            _logStreamCallback = logStreamCallback;
+            
+            // Activate the log stream
+            _logStreamCallback.Activate(client, logLevel);
         }
-    }
-        UseTdLibLogging(client, loggerFactory, logLevel);
     }
 
     /// <summary>
-    /// Disables TDLib logging integration and clears the callback.
+    /// Disables TDLib logging integration and clears the log stream.
     /// </summary>
     /// <remarks>
     /// Call this method when disposing your application or when you want to stop
@@ -136,101 +133,8 @@ public static class TdLoggerExtensions
     {
         lock (_lock)
         {
-            // Clear the callback by setting null
-            TdNativeLogging.SetLogMessageCallback(0, null);
-            
-            // Free the pinned callback handle
-            if (_callbackHandle.IsAllocated)
-            {
-                _callbackHandle.Free();
-            }
-
-            _nativeCallback = null;
-            _fatalErrorCallback = null;
-            _loggerFactory = null;
-        }
-    }
-
-    /// <summary>
-    /// Extracts the source file name from a TDLib log message to use as logger category.
-    /// </summary>
-    /// <param name="message">The raw TDLib log message</param>
-    /// <returns>Logger category like "TDLib.AuthData" or "TDLib" if not found</returns>
-    internal static string ExtractLoggerCategory(string message)
-    {
-        if (string.IsNullOrEmpty(message))
-            return "TDLib";
-
-        var match = SourceFilePattern.Match(message);
-        if (match.Success)
-        {
-            var sourceFile = match.Groups[1].Value;
-            return $"TDLib.{sourceFile}";
-        }
-
-        return "TDLib";
-    }
-
-    /// <summary>
-    /// Callback handler for ALL TDLib log messages.
-    /// </summary>
-    private static void OnLogMessage(int verbosityLevel, IntPtr messagePtr)
-    {
-        ILoggerFactory? currentLoggerFactory;
-        lock (_lock)
-        {
-            currentLoggerFactory = _loggerFactory;
-        }
-
-        if (currentLoggerFactory == null || messagePtr == IntPtr.Zero)
-            return;
-
-        try
-        {
-            var message = Marshal.PtrToStringAnsi(messagePtr);
-            if (string.IsNullOrEmpty(message))
-                return;
-
-            // Extract the source file from the message to use as logger category
-            var category = ExtractLoggerCategory(message);
-            var logger = currentLoggerFactory.CreateLogger(category);
-            var logLevel = ((TdLogLevel)verbosityLevel).ToLogLevel();
-
-            // Log the message at the appropriate level
-            logger.Log(logLevel, "{Message}", message);
-        }
-        catch (Exception ex)
-        {
-            // Swallow exceptions in callback to prevent native crashes
-            System.Diagnostics.Debug.WriteLine($"Error in TDLib log callback: {ex}");
-        }
-    }
-
-    /// <summary>
-    /// Callback handler for TDLib fatal errors.
-    /// </summary>
-    private static void OnFatalError(IntPtr messagePtr)
-    {
-        ILoggerFactory? currentLoggerFactory;
-        lock (_lock)
-        {
-            currentLoggerFactory = _loggerFactory;
-        }
-
-        if (currentLoggerFactory == null || messagePtr == IntPtr.Zero)
-            return;
-
-        try
-        {
-            var message = Marshal.PtrToStringAnsi(messagePtr);
-            // Create a logger specifically for TDLib fatal errors
-            var logger = currentLoggerFactory.CreateLogger("TDLib.FatalError");
-            logger.LogCritical("{Message}", message);
-        }
-        catch (Exception ex)
-        {
-            // Swallow exceptions in callback to prevent native crashes
-            System.Diagnostics.Debug.WriteLine($"Error in TDLib fatal error callback: {ex}");
+            _logStreamCallback?.Dispose();
+            _logStreamCallback = null;
         }
     }
 
