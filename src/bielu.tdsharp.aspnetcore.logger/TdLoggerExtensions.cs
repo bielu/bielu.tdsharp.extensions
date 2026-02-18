@@ -302,7 +302,7 @@ public static class TdLoggerExtensions
     /// <summary>
     /// Simple logger factory implementation that always returns a single logger instance
     /// </summary>
-    private class SingleLoggerFactory : ILoggerFactory
+    private sealed class SingleLoggerFactory : ILoggerFactory
     {
         private readonly ILogger _logger;
 
