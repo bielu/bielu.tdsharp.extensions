@@ -2,8 +2,6 @@
 //
 // SPDX-License-Identifier: MIT
 
-using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using TdLib;
 using TdLib.Bindings;
@@ -20,36 +18,33 @@ namespace bielu.tdsharp.aspnetcore.logger;
 /// you have configured (Console, File, Application Insights, etc.).
 /// </para>
 /// <para>
+/// <b>Implementation:</b> This class uses a custom <see cref="ILogStream"/> implementation 
+/// (<see cref="LoggerLogStream"/>) that captures log messages directly via TDLib's native callback
+/// and forwards them to ILogger without intermediate files.
+/// </para>
+/// <para>
 /// <b>Thread Safety:</b> The UseTdLibLogging methods are not thread-safe.
 /// They should be called once during application initialization before using the TdClient.
 /// </para>
 /// <para>
-/// <b>Multi-Client Scenarios:</b> TDLib uses a global log message callback, so only one
+/// <b>Multi-Client Scenarios:</b> TDLib uses a global log stream, so only one
 /// logger configuration can be active at a time.
 /// </para>
 /// </remarks>
 public static class TdLoggerExtensions
 {
     private static readonly object _lock = new();
-    private static ILoggerFactory? _loggerFactory;
-    private static TdLogMessageCallback? _nativeCallback;
-    private static Callback? _fatalErrorCallback;
-
-    /// <summary>
-    /// Regex pattern to extract source file from TDLib log messages.
-    /// Matches patterns like [AuthData.cpp:122] or [Td.cpp:1346]
-    /// </summary>
-    private static readonly Regex SourceFilePattern = new(
-        @"\[([A-Za-z0-9_]+)\.cpp:\d+\]",
-        RegexOptions.Compiled);
+    private static LogStreamManager? _logStreamManager;
+    private static LoggerLogStream? _loggerLogStream;
 
     /// <summary>
     /// Configures TDLib to route all log messages to the specified ILoggerFactory.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// This method sets up TDLib's log message callback to forward all TDLib internal logs
-    /// to .NET's ILoggerFactory. Each log message is routed through a logger with a category
+    /// This method sets up a custom <see cref="LoggerLogStream"/> that captures TDLib log messages 
+    /// directly via the native log message callback and forwards them to .NET's ILoggerFactory.
+    /// Each log message is routed through a logger with a category
     /// based on the TDLib source file (e.g., "TDLib.AuthData" for messages from AuthData.cpp).
     /// </para>
     /// <para>
@@ -66,19 +61,16 @@ public static class TdLoggerExtensions
 
         lock (_lock)
         {
-            _loggerFactory = loggerFactory;
+            // Clean up any existing resources
+            _logStreamManager?.Dispose();
+            _loggerLogStream?.Dispose();
 
-            // Set the verbosity level to control what messages TDLib generates
-            client.Bindings.SetLogVerbosityLevel((int)logLevel);
+            // Create the custom log stream that forwards to ILogger
+            _loggerLogStream = new LoggerLogStream(loggerFactory);
 
-            // Set up the log message callback to route ALL log messages to ILogger
-            // Keep a reference to prevent garbage collection
-            _nativeCallback = OnLogMessage;
-            TdNativeLogging.SetLogMessageCallback((int)logLevel, _nativeCallback);
-
-            // Also set up fatal error callback for critical errors that bypass normal logging
-            _fatalErrorCallback = OnFatalError;
-            client.Bindings.SetLogFatalErrorCallback(_fatalErrorCallback);
+            // Create and configure the log stream manager
+            _logStreamManager = new LogStreamManager(client);
+            _logStreamManager.SetLogStream(_loggerLogStream, logLevel);
         }
     }
 
@@ -89,19 +81,48 @@ public static class TdLoggerExtensions
     /// <param name="client">The TdClient instance</param>
     /// <param name="loggerFactory">The ILoggerFactory to use for creating loggers</param>
     /// <param name="logLevel">The TDLib log level to set</param>
-    /// <param name="disableDefaultLogging">Whether to disable default console/stderr logging</param>
+    /// <param name="disableDefaultLogging">Whether to disable default console/stderr logging. 
+    /// Note: Default logging is always disabled when using this integration to capture logs directly via the custom stream.</param>
     public static void UseTdLibLogging(this TdClient client, ILoggerFactory loggerFactory, TdLogLevel logLevel, bool disableDefaultLogging)
     {
+        // Default logging is always disabled since we capture logs via custom stream
+        // The disableDefaultLogging parameter is kept for API compatibility
         UseTdLibLogging(client, loggerFactory, logLevel);
+    }
 
-        if (disableDefaultLogging)
+    /// <summary>
+    /// Configures TDLib to route all log messages to a custom <see cref="ILogStream"/> implementation.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This method allows you to provide your own custom log stream implementation
+    /// that receives TDLib log messages directly without intermediate files.
+    /// </para>
+    /// <para>
+    /// This method is not thread-safe and should be called once during application initialization.
+    /// </para>
+    /// </remarks>
+    /// <param name="client">The TdClient instance</param>
+    /// <param name="logStream">The custom log stream implementation</param>
+    /// <param name="logLevel">The TDLib log level to set (controls which messages TDLib generates)</param>
+    public static void UseTdLibLogging(this TdClient client, ILogStream logStream, TdLogLevel logLevel = TdLogLevel.Warning)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        ArgumentNullException.ThrowIfNull(logStream);
+
+        lock (_lock)
         {
-            // Disable default logging by setting an empty log stream
-            client.Execute(new TdApi.SetLogStream
-            {
-                LogStream = new TdApi.LogStream.LogStreamEmpty()
-            });
+            // Clean up any existing resources
+            _logStreamManager?.Dispose();
+            _loggerLogStream?.Dispose();
+            _loggerLogStream = null;
+
+            // Create and configure the log stream manager with the custom stream
+            _logStreamManager = new LogStreamManager(client);
+            _logStreamManager.SetLogStream(logStream, logLevel);
         }
+    }
+        UseTdLibLogging(client, loggerFactory, logLevel);
     }
 
     /// <summary>
@@ -117,6 +138,13 @@ public static class TdLoggerExtensions
         {
             // Clear the callback by setting null
             TdNativeLogging.SetLogMessageCallback(0, null);
+            
+            // Free the pinned callback handle
+            if (_callbackHandle.IsAllocated)
+            {
+                _callbackHandle.Free();
+            }
+
             _nativeCallback = null;
             _fatalErrorCallback = null;
             _loggerFactory = null;
