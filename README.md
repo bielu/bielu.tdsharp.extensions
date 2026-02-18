@@ -64,17 +64,6 @@ builder.Services.AddSingleton<TdClient>(sp =>
 });
 ```
 
-#### Bidirectional Logging (Optional)
-
-You can also route .NET logs TO TDLib (if you want logs to appear in TDLib's log output):
-
-```csharp
-// .NET → TDLib: Add TDLib as a logging provider
-loggerFactory.AddTdLib(client, TdLogLevel.Debug);
-var logger = loggerFactory.CreateLogger<MyService>();
-logger.LogInformation("This message goes to TDLib's log");
-```
-
 ### How It Works
 
 The library uses TDLib's native `td_set_log_message_callback` function to intercept all log messages from TDLib's internal logging system. These messages are then forwarded to your configured `ILoggerFactory`, allowing them to flow through your standard .NET logging pipeline.
