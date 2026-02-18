@@ -134,7 +134,7 @@ public static class TdLoggerExtensions
             return "TDLib";
 
         var match = SourceFilePattern.Match(message);
-        if (match.Success && match.Groups.Count > 1)
+        if (match.Success)
         {
             var sourceFile = match.Groups[1].Value;
             return $"TDLib.{sourceFile}";
