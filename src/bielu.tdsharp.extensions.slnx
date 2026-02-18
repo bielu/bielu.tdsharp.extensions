@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/examples/">
+    <Project Path="examples/Example.LoggerDemo/Example.LoggerDemo.csproj" />
+  </Folder>
+  <Project Path="bielu.tdsharp.aspnetcore.logger.tests/bielu.tdsharp.aspnetcore.logger.tests.csproj" />
+  <Project Path="bielu.tdsharp.aspnetcore.logger/bielu.tdsharp.aspnetcore.logger.csproj" />
+</Solution>
