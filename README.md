@@ -1,5 +1,10 @@
 # bielu.tdsharp.extensions
 
+[![CI](https://github.com/bielu/bielu.tdsharp.extensions/actions/workflows/ci.yml/badge.svg)](https://github.com/bielu/bielu.tdsharp.extensions/actions/workflows/ci.yml)
+[![NuGet](https://img.shields.io/nuget/v/bielu.tdsharp.aspnetcore.logger.svg)](https://www.nuget.org/packages/bielu.tdsharp.aspnetcore.logger/)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/bielu.tdsharp.aspnetcore.logger.svg)](https://www.nuget.org/packages/bielu.tdsharp.aspnetcore.logger/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Extensions for TdSharp (Telegram TDLib .NET bindings) providing enhanced integration with .NET ecosystem.
 
 ## bielu.tdsharp.aspnetcore.logger
