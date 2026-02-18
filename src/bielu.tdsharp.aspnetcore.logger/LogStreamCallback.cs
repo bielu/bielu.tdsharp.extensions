@@ -11,20 +11,28 @@ using TdLib.Bindings;
 namespace bielu.tdsharp.aspnetcore.logger;
 
 /// <summary>
-/// A custom TDLib LogStream implementation that forwards log messages to an ILoggerFactory.
+/// Captures TDLib log messages using td_set_log_message_callback and forwards them to an ILoggerFactory.
 /// </summary>
 /// <remarks>
 /// <para>
-/// This class inherits from <see cref="TdApi.LogStream"/> and can be used directly with TDLib's
-/// <see cref="TdApi.SetLogStream"/> to capture all log messages and forward them to .NET's
-/// ILoggerFactory-based logging system without intermediate files.
+/// This class uses TDLib's native <c>td_set_log_message_callback</c> function (added in TDLib 1.7.5)
+/// to intercept ALL log messages and forward them to .NET's ILoggerFactory-based logging system.
+/// </para>
+/// <para>
+/// The <c>td_set_log_message_callback</c> function is not exposed by TDSharp's standard bindings,
+/// so this class uses P/Invoke via <see cref="TdNativeLogging"/> to access it directly.
+/// See TDLib issue #794 for the history of this feature.
 /// </para>
 /// <para>
 /// Each log message is routed through a logger with a category based on the TDLib source file
 /// (e.g., "TDLib.AuthData" for messages from AuthData.cpp).
 /// </para>
+/// <para>
+/// <b>Thread Safety:</b> The native callback is called from TDLib's internal threads.
+/// The callback delegate is pinned using GCHandle to prevent garbage collection.
+/// </para>
 /// </remarks>
-public sealed class LogStreamCallback : TdApi.LogStream, IDisposable
+public sealed class LogStreamCallback : IDisposable
 {
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger _fatalErrorLogger;
@@ -57,14 +65,20 @@ public sealed class LogStreamCallback : TdApi.LogStream, IDisposable
         _nativeCallback = OnLogMessage;
         _callbackHandle = GCHandle.Alloc(_nativeCallback);
         _fatalErrorCallback = OnFatalError;
-        
-        // Set the DataType for serialization (required by TDLib)
-        DataType = "logStreamCallback";
     }
 
     /// <summary>
     /// Activates this log stream for the specified TdClient.
     /// </summary>
+    /// <remarks>
+    /// This method:
+    /// <list type="number">
+    /// <item>Sets the TDLib verbosity level</item>
+    /// <item>Disables default logging output using LogStreamEmpty</item>
+    /// <item>Registers the native log message callback via td_set_log_message_callback</item>
+    /// <item>Registers the fatal error callback</item>
+    /// </list>
+    /// </remarks>
     /// <param name="client">The TdClient instance to configure logging for.</param>
     /// <param name="logLevel">The TDLib log level to set (controls which messages TDLib generates).</param>
     /// <exception cref="ArgumentNullException">Thrown when client is null.</exception>
@@ -74,19 +88,20 @@ public sealed class LogStreamCallback : TdApi.LogStream, IDisposable
         ArgumentNullException.ThrowIfNull(client);
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        // Set the verbosity level
+        // Set the verbosity level to control what messages TDLib generates
         client.Bindings.SetLogVerbosityLevel((int)logLevel);
 
-        // Set this custom log stream directly
+        // Disable default logging output (stderr/file) - we capture via callback instead
         client.Execute(new TdApi.SetLogStream
         {
-            LogStream = this
+            LogStream = new TdApi.LogStream.LogStreamEmpty()
         });
 
-        // Set up the native callback to capture log messages
+        // Register our callback using td_set_log_message_callback (TDLib 1.7.5+)
+        // This is the key function that allows intercepting ALL log messages
         TdNativeLogging.SetLogMessageCallback((int)logLevel, _nativeCallback);
 
-        // Set up fatal error callback
+        // Also register fatal error callback for critical errors that bypass normal logging
         client.Bindings.SetLogFatalErrorCallback(_fatalErrorCallback);
     }
 
