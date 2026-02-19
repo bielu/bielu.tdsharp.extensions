@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: MIT
 
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
@@ -10,6 +9,12 @@ using TdLib;
 using TdLib.Bindings;
 
 namespace bielu.tdsharp.aspnetcore.logger;
+
+/// <summary>
+/// Delegate for the native TDLib log message callback.
+/// </summary>
+[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+internal delegate void NativeLogCallback(int verbosityLevel, IntPtr message);
 
 /// <summary>
 /// Captures TDLib log messages using td_set_log_message_callback and forwards them to an ILoggerFactory.
@@ -21,7 +26,7 @@ namespace bielu.tdsharp.aspnetcore.logger;
 /// </para>
 /// <para>
 /// The <c>td_set_log_message_callback</c> function is not exposed by TDSharp's standard bindings,
-/// so this class uses P/Invoke via <see cref="TdNativeLogging"/> to access it directly.
+/// so this class uses P/Invoke to access it directly.
 /// See TDLib issue #794 for the history of this feature.
 /// </para>
 /// <para>
@@ -30,12 +35,23 @@ namespace bielu.tdsharp.aspnetcore.logger;
 /// </para>
 /// <para>
 /// <b>Thread Safety:</b> The native callback is called from TDLib's internal threads.
-/// This class uses <see cref="UnmanagedCallersOnlyAttribute"/> for the native callback,
-/// which is the recommended approach in modern .NET for native interop.
+/// The callback delegate is stored in a static field to prevent garbage collection.
 /// </para>
 /// </remarks>
-public sealed unsafe class LogStreamCallback : IDisposable
+public sealed class LogStreamCallback : IDisposable
 {
+    /// <summary>
+    /// Direct P/Invoke to TDLib's td_set_log_message_callback function.
+    /// </summary>
+    [DllImport("tdjson", CallingConvention = CallingConvention.Cdecl)]
+    private static extern void td_set_log_message_callback(int maxVerbosityLevel, NativeLogCallback? callback);
+
+    /// <summary>
+    /// Alternative P/Invoke that takes a function pointer as IntPtr.
+    /// </summary>
+    [DllImport("tdjson", CallingConvention = CallingConvention.Cdecl, EntryPoint = "td_set_log_message_callback")]
+    private static extern void td_set_log_message_callback_ptr(int maxVerbosityLevel, IntPtr callback);
+
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger _fatalErrorLogger;
     private readonly Callback _fatalErrorCallback;
@@ -48,6 +64,17 @@ public sealed unsafe class LogStreamCallback : IDisposable
     /// (locks should be avoided in native callbacks).
     /// </summary>
     private static LogStreamCallback? _currentInstance;
+
+    /// <summary>
+    /// Static reference to the callback delegate to prevent garbage collection.
+    /// The delegate must remain alive as long as the callback is registered with native code.
+    /// </summary>
+    private static NativeLogCallback? _callbackDelegate;
+
+    /// <summary>
+    /// GC handle to pin the callback delegate, preventing it from being collected.
+    /// </summary>
+    private static GCHandle _callbackHandle;
 
     /// <summary>
     /// Regex pattern to extract source file from TDLib log messages.
@@ -92,30 +119,55 @@ public sealed unsafe class LogStreamCallback : IDisposable
         ArgumentNullException.ThrowIfNull(client);
         ObjectDisposedException.ThrowIf(_disposed, this);
 
+        Console.WriteLine($"[DEBUG-ACTIVATE] Starting with logLevel={logLevel} ({(int)logLevel})");
+        
         // Set the verbosity level to control what messages TDLib generates
         client.Bindings.SetLogVerbosityLevel((int)logLevel);
+        Console.WriteLine($"[DEBUG-ACTIVATE] SetLogVerbosityLevel called");
 
         // IMPORTANT: Set the current instance BEFORE registering the callback
         // This ensures the callback has a valid instance to route messages to
         Volatile.Write(ref _currentInstance, this);
+        Console.WriteLine($"[DEBUG-ACTIVATE] _currentInstance set");
+
+        // Free any previous callback handle to prevent memory leak
+        if (_callbackHandle.IsAllocated)
+        {
+            _callbackHandle.Free();
+            Console.WriteLine($"[DEBUG-ACTIVATE] Previous handle freed");
+        }
+
+        // Create and pin the callback delegate to prevent garbage collection
+        // The delegate must remain alive as long as the callback is registered with native code
+        _callbackDelegate = OnNativeLogMessage;
+        _callbackHandle = GCHandle.Alloc(_callbackDelegate);
+        Console.WriteLine($"[DEBUG-ACTIVATE] Callback delegate created and pinned");
+
+        // Get the function pointer for the delegate
+        var callbackPtr = Marshal.GetFunctionPointerForDelegate(_callbackDelegate);
+        Console.WriteLine($"[DEBUG-ACTIVATE] Function pointer: {callbackPtr}");
 
         // Register our callback using td_set_log_message_callback (TDLib 1.7.5+)
-        // Using UnmanagedCallersOnly with function pointers for reliable native interop
-        TdNativeLogging.SetLogMessageCallbackFunctionPointer((int)logLevel, &NativeLogMessageCallback);
+        Console.WriteLine($"[DEBUG-ACTIVATE] About to call td_set_log_message_callback_ptr");
+        td_set_log_message_callback_ptr((int)logLevel, callbackPtr);
+        Console.WriteLine($"[DEBUG-ACTIVATE] td_set_log_message_callback_ptr returned");
 
+        // TEMPORARILY SKIP LogStreamEmpty to debug
         // Disable default logging output (stderr/file) to prevent duplicate logs.
         // Note: LogStreamEmpty and td_set_log_message_callback operate independently.
         // LogStreamEmpty prevents TDLib from writing to stderr/file, while
         // td_set_log_message_callback intercepts messages before they would be written.
         // Using both ensures logs only go through our callback.
         // We do this AFTER registering the callback to avoid losing any messages
-        client.Execute(new TdApi.SetLogStream
-        {
-            LogStream = new TdApi.LogStream.LogStreamEmpty()
-        });
+        // client.Execute(new TdApi.SetLogStream
+        // {
+        //     LogStream = new TdApi.LogStream.LogStreamEmpty()
+        // });
+        Console.WriteLine($"[DEBUG-ACTIVATE] SetLogStream(LogStreamEmpty) SKIPPED for debugging");
 
         // Also register fatal error callback for critical errors that bypass normal logging
         client.Bindings.SetLogFatalErrorCallback(_fatalErrorCallback);
+        Console.WriteLine($"[DEBUG-ACTIVATE] Done");
     }
 
     /// <summary>
@@ -124,25 +176,39 @@ public sealed unsafe class LogStreamCallback : IDisposable
     public void Deactivate()
     {
         // First disable the callback to stop receiving messages
-        TdNativeLogging.SetLogMessageCallbackFunctionPointer(0, null);
+        td_set_log_message_callback(0, null);
+        
+        // Free the callback handle
+        if (_callbackHandle.IsAllocated)
+        {
+            _callbackHandle.Free();
+        }
+        _callbackDelegate = null;
         
         // Atomically clear the instance reference only if it still points to this instance
         Interlocked.CompareExchange(ref _currentInstance, null, this);
     }
 
     /// <summary>
-    /// Static callback method that is called directly from native code.
-    /// This method must be static because it uses <see cref="UnmanagedCallersOnlyAttribute"/>.
+    /// Callback method that is invoked by native TDLib code when a log message is generated.
+    /// This method is called from TDLib's internal threads.
     /// </summary>
-    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static void NativeLogMessageCallback(int verbosityLevel, IntPtr messagePtr)
+    private static void OnNativeLogMessage(int verbosityLevel, IntPtr messagePtr)
     {
+        Console.WriteLine($"[DEBUG-CALLBACK] Entered! verbosity={verbosityLevel}");
+        
         // Use volatile read to avoid lock in native callback
         // This is safe because we only need eventual consistency for the instance reference
         var instance = Volatile.Read(ref _currentInstance);
+        
+        if (instance == null)
+        {
+            Console.WriteLine($"[DEBUG-CALLBACK] ERROR: instance is null!");
+            return;
+        }
 
         // Route to the instance method if available
-        instance?.OnLogMessage(verbosityLevel, messagePtr);
+        instance.OnLogMessage(verbosityLevel, messagePtr);
     }
 
     private void OnLogMessage(int verbosityLevel, IntPtr messagePtr)
@@ -225,7 +291,14 @@ public sealed unsafe class LogStreamCallback : IDisposable
         _disposed = true;
 
         // First disable the callback to stop receiving messages
-        TdNativeLogging.SetLogMessageCallbackFunctionPointer(0, null);
+        td_set_log_message_callback(0, null);
+
+        // Free the callback handle
+        if (_callbackHandle.IsAllocated)
+        {
+            _callbackHandle.Free();
+        }
+        _callbackDelegate = null;
 
         // Atomically clear the instance reference only if it still points to this instance
         Interlocked.CompareExchange(ref _currentInstance, null, this);
