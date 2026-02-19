@@ -20,9 +20,8 @@ namespace bielu.tdsharp.aspnetcore.logger;
 /// </para>
 /// <para>
 /// <b>Important:</b> Due to .NET native interop limitations with cross-assembly callbacks,
-/// the callback registration must be performed from your application code using the
-/// <see cref="TdLogMessageCallback"/> delegate and your own P/Invoke declaration.
-/// See the example below for proper usage.
+/// you must define the P/Invoke for <c>td_set_log_message_callback</c> in your application
+/// and pass it to the <see cref="UseTdLibLogging"/> method.
 /// </para>
 /// </remarks>
 /// <example>
@@ -31,44 +30,119 @@ namespace bielu.tdsharp.aspnetcore.logger;
 /// [DllImport("tdjson", CallingConvention = CallingConvention.Cdecl)]
 /// static extern void td_set_log_message_callback(int maxVerbosityLevel, TdLogMessageCallback? callback);
 /// 
-/// // Step 2: Create logger factory and log handler
+/// // Step 2: Create logger factory and TdClient
 /// using var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-/// using var logHandler = new LogStreamCallback(loggerFactory);
-/// 
-/// // Step 3: Create TdClient
 /// using var client = new TdClient();
 /// 
-/// // Step 4: Set verbosity level and create callback
-/// client.Bindings.SetLogVerbosityLevel((int)TdLogLevel.Info);
-/// TdLogMessageCallback callback = (verbosity, msgPtr) => logHandler.HandleLogMessage(verbosity, msgPtr);
-/// var handle = GCHandle.Alloc(callback);
-/// 
-/// // Step 5: Register callback and disable default logging
-/// td_set_log_message_callback((int)TdLogLevel.Info, callback);
-/// client.Execute(new TdApi.SetLogStream { LogStream = new TdApi.LogStream.LogStreamEmpty() });
+/// // Step 3: Use the extension method, passing your P/Invoke
+/// var cleanup = client.UseTdLibLogging(loggerFactory, TdLogLevel.Info, td_set_log_message_callback);
 /// 
 /// // ... use client ...
 /// 
-/// // Step 6: Cleanup
-/// td_set_log_message_callback(0, null);
-/// handle.Free();
+/// // Step 4: Cleanup when done
+/// cleanup.Dispose();
 /// </code>
 /// </example>
 public static class TdLoggerExtensions
 {
+    /// <summary>
+    /// Configures TDLib to route all log messages to the specified ILoggerFactory.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This method sets up the complete logging pipeline:
+    /// </para>
+    /// <list type="bullet">
+    /// <item>Creates a <see cref="LogStreamCallback"/> to handle log messages</item>
+    /// <item>Sets the TDLib verbosity level</item>
+    /// <item>Registers the native callback using your provided P/Invoke</item>
+    /// <item>Disables default TDLib logging to prevent duplicate output</item>
+    /// </list>
+    /// <para>
+    /// <b>Important:</b> You must define the P/Invoke for <c>td_set_log_message_callback</c>
+    /// in your application and pass it as the <paramref name="setCallback"/> parameter.
+    /// This is required due to .NET native interop limitations with cross-assembly callbacks.
+    /// </para>
+    /// </remarks>
+    /// <param name="client">The TdClient instance</param>
+    /// <param name="loggerFactory">The ILoggerFactory to use for creating loggers</param>
+    /// <param name="logLevel">The TDLib log level to set (controls which messages TDLib generates)</param>
+    /// <param name="setCallback">Your P/Invoke method for <c>td_set_log_message_callback</c></param>
+    /// <param name="disableDefaultLogging">Whether to disable default console/stderr logging (default: true)</param>
+    /// <returns>An <see cref="IDisposable"/> that cleans up the logging when disposed</returns>
+    /// <example>
+    /// <code>
+    /// [DllImport("tdjson", CallingConvention = CallingConvention.Cdecl)]
+    /// static extern void td_set_log_message_callback(int maxVerbosityLevel, TdLogMessageCallback? callback);
+    /// 
+    /// var cleanup = client.UseTdLibLogging(loggerFactory, TdLogLevel.Info, td_set_log_message_callback);
+    /// // ... use client ...
+    /// cleanup.Dispose();
+    /// </code>
+    /// </example>
+    public static IDisposable UseTdLibLogging(
+        this TdClient client,
+        ILoggerFactory loggerFactory,
+        TdLogLevel logLevel,
+        SetLogMessageCallbackDelegate setCallback,
+        bool disableDefaultLogging = true)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        ArgumentNullException.ThrowIfNull(loggerFactory);
+        ArgumentNullException.ThrowIfNull(setCallback);
+
+        // Create the log handler
+        var logHandler = new LogStreamCallback(loggerFactory);
+
+        // Set the verbosity level
+        client.Bindings.SetLogVerbosityLevel((int)logLevel);
+
+        // Create and pin the callback
+        TdLogMessageCallback callback = (verbosity, msgPtr) => logHandler.HandleLogMessage(verbosity, msgPtr);
+        var callbackHandle = GCHandle.Alloc(callback);
+
+        // Register the callback using the consumer's P/Invoke
+        setCallback((int)logLevel, callback);
+
+        // Disable default logging if requested
+        if (disableDefaultLogging)
+        {
+            client.Execute(new TdApi.SetLogStream
+            {
+                LogStream = new TdApi.LogStream.LogStreamEmpty()
+            });
+        }
+
+        // Return a disposable that handles cleanup
+        return new TdLibLoggingScope(logHandler, callbackHandle, setCallback);
+    }
+
+    /// <summary>
+    /// Configures TDLib to route all log messages to the specified ILoggerFactory with default settings.
+    /// </summary>
+    /// <remarks>
+    /// This overload uses <see cref="TdLogLevel.Warning"/> as the default log level.
+    /// </remarks>
+    /// <param name="client">The TdClient instance</param>
+    /// <param name="loggerFactory">The ILoggerFactory to use for creating loggers</param>
+    /// <param name="setCallback">Your P/Invoke method for <c>td_set_log_message_callback</c></param>
+    /// <returns>An <see cref="IDisposable"/> that cleans up the logging when disposed</returns>
+    public static IDisposable UseTdLibLogging(
+        this TdClient client,
+        ILoggerFactory loggerFactory,
+        SetLogMessageCallbackDelegate setCallback)
+    {
+        return UseTdLibLogging(client, loggerFactory, TdLogLevel.Warning, setCallback);
+    }
+
     /// <summary>
     /// Configures TDLib verbosity level and disables default logging output.
     /// </summary>
     /// <remarks>
     /// <para>
     /// This method prepares TDLib for custom logging by setting the verbosity level
-    /// and disabling the default stderr/file logging. After calling this method,
-    /// you must register your callback using your own P/Invoke declaration.
-    /// </para>
-    /// <para>
-    /// <b>Important:</b> Due to .NET native interop limitations, you must define
-    /// the P/Invoke for <c>td_set_log_message_callback</c> in your own application
-    /// and register the callback yourself. See class documentation for an example.
+    /// and disabling the default stderr/file logging. Use this if you want more control
+    /// over the callback registration process.
     /// </para>
     /// </remarks>
     /// <param name="client">The TdClient instance</param>

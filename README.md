@@ -27,7 +27,7 @@ dotnet add package bielu.tdsharp.aspnetcore.logger
 
 ### Usage
 
-**Important:** Due to .NET native interop requirements, you must define the P/Invoke for `td_set_log_message_callback` in your own application code. This is necessary for the callback to work correctly.
+**Note:** Due to .NET native interop requirements, you need to define a simple P/Invoke in your application and pass it to the extension method.
 
 ```csharp
 using System.Runtime.InteropServices;
@@ -36,7 +36,7 @@ using Microsoft.Extensions.Logging;
 using TdLib;
 using TdLib.Bindings;
 
-// Step 1: Define P/Invoke in your application (required for callback to work)
+// Step 1: Define P/Invoke in your application (one line)
 [DllImport("tdjson", CallingConvention = CallingConvention.Cdecl)]
 static extern void td_set_log_message_callback(int maxVerbosityLevel, TdLogMessageCallback? callback);
 
@@ -47,34 +47,20 @@ using var loggerFactory = LoggerFactory.Create(builder =>
     builder.SetMinimumLevel(LogLevel.Debug);
 });
 
-// Step 3: Create the log handler that routes TDLib messages to ILoggerFactory
-using var logHandler = new LogStreamCallback(loggerFactory);
-
-// Step 4: Create TdClient
+// Step 3: Create TdClient
 using var client = new TdClient();
 
-// Step 5: Set verbosity level and create callback
-client.Bindings.SetLogVerbosityLevel((int)TdLogLevel.Info);
-TdLogMessageCallback callback = (verbosity, msgPtr) => logHandler.HandleLogMessage(verbosity, msgPtr);
+// Step 4: Use the extension method - pass your P/Invoke as a parameter
+using var loggingScope = client.UseTdLibLogging(
+    loggerFactory, 
+    TdLogLevel.Info, 
+    td_set_log_message_callback);
 
-// Pin the delegate to prevent garbage collection
-var callbackHandle = GCHandle.Alloc(callback);
+// Now all TDLib logs will appear through your ILoggerFactory!
+// Your app code here...
 
-try
-{
-    // Step 6: Register callback and disable default logging
-    td_set_log_message_callback((int)TdLogLevel.Info, callback);
-    client.Execute(new TdApi.SetLogStream { LogStream = new TdApi.LogStream.LogStreamEmpty() });
-
-    // Now all TDLib logs will appear through your ILoggerFactory!
-    // Your app code here...
-}
-finally
-{
-    // Step 7: Cleanup
-    td_set_log_message_callback(0, null);
-    callbackHandle.Free();
-}
+// loggingScope.Dispose() is called automatically when exiting the using block,
+// which cleans up the callback and frees resources
 ```
 
 ### With ASP.NET Core Dependency Injection
@@ -87,29 +73,22 @@ public class TdClientService : IDisposable
     private static extern void td_set_log_message_callback(int maxVerbosityLevel, TdLogMessageCallback? callback);
 
     private readonly TdClient _client;
-    private readonly LogStreamCallback _logHandler;
-    private readonly GCHandle _callbackHandle;
+    private readonly IDisposable _loggingScope;
 
     public TdClientService(ILoggerFactory loggerFactory)
     {
-        _logHandler = new LogStreamCallback(loggerFactory);
         _client = new TdClient();
-        
-        _client.Bindings.SetLogVerbosityLevel((int)TdLogLevel.Info);
-        TdLogMessageCallback callback = (v, m) => _logHandler.HandleLogMessage(v, m);
-        _callbackHandle = GCHandle.Alloc(callback);
-        
-        td_set_log_message_callback((int)TdLogLevel.Info, callback);
-        _client.Execute(new TdApi.SetLogStream { LogStream = new TdApi.LogStream.LogStreamEmpty() });
+        _loggingScope = _client.UseTdLibLogging(
+            loggerFactory, 
+            TdLogLevel.Info, 
+            td_set_log_message_callback);
     }
 
     public TdClient Client => _client;
 
     public void Dispose()
     {
-        td_set_log_message_callback(0, null);
-        _callbackHandle.Free();
-        _logHandler.Dispose();
+        _loggingScope.Dispose();
         _client.Dispose();
     }
 }
@@ -146,13 +125,7 @@ The logging integration is thread-safe. The callback registration should be done
 
 ### Why the P/Invoke Must Be in Your Application
 
-Due to how .NET marshals callback delegates to native code, the P/Invoke declaration for `td_set_log_message_callback` must be in the same assembly that calls it with a callback. This is a .NET runtime requirement for correct callback invocation.
-
-The library provides:
-- `LogStreamCallback` - handles log messages and routes them to ILoggerFactory
-- `TdLogMessageCallback` - the delegate type for the callback
-- `TdLogLevel` - enum for TDLib log levels
-- Helper methods like `TdLogLevel.ToLogLevel()` for converting between TDLib and .NET log levels
+Due to how .NET marshals callback delegates to native code, the P/Invoke declaration must be in the consumer's assembly for callbacks to work correctly. This is a .NET runtime requirement. The extension method handles all the complexity - you just need to define the one-line P/Invoke and pass it in.
 
 ## License
 

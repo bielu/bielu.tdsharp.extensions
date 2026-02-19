@@ -172,4 +172,74 @@ public class LogStreamCallbackIntegrationTests
             Marshal.FreeHGlobal(messagePtr);
         }
     }
+
+    [Fact]
+    public void UseTdLibLogging_WithCallbackParameter_ShouldCaptureAndRouteLogs()
+    {
+        // Arrange
+        var createdCategories = new List<string>();
+        
+        var mockLogger = Substitute.For<ILogger>();
+        var mockLoggerFactory = Substitute.For<ILoggerFactory>();
+        mockLoggerFactory
+            .CreateLogger(Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                var category = callInfo.ArgAt<string>(0);
+                createdCategories.Add(category);
+                return mockLogger;
+            });
+
+        using var client = new TdClient();
+
+        // Act - use the extension method with our P/Invoke
+        using var loggingScope = client.UseTdLibLogging(
+            mockLoggerFactory,
+            TdLogLevel.Info,
+            td_set_log_message_callback);
+
+        // Wait for logs
+        Thread.Sleep(500);
+
+        // Assert - should have captured TDLib log messages
+        var tdlibCategories = createdCategories.Where(c => c.StartsWith("TDLib.") && c != "TDLib.FatalError").ToList();
+        tdlibCategories.Should().NotBeEmpty("The extension method should set up logging correctly");
+    }
+
+    [Fact]
+    public void UseTdLibLogging_WhenDisposed_ShouldCleanUpResources()
+    {
+        // Arrange
+        var mockLogger = Substitute.For<ILogger>();
+        var mockLoggerFactory = Substitute.For<ILoggerFactory>();
+        mockLoggerFactory.CreateLogger(Arg.Any<string>()).Returns(mockLogger);
+
+        int? registeredVerbosity = null;
+        TdLogMessageCallback? registeredCallback = null;
+        
+        SetLogMessageCallbackDelegate mockSetCallback = (verbosity, callback) =>
+        {
+            registeredVerbosity = verbosity;
+            registeredCallback = callback;
+        };
+
+        using var client = new TdClient();
+
+        // Act
+        var loggingScope = client.UseTdLibLogging(
+            mockLoggerFactory,
+            TdLogLevel.Info,
+            mockSetCallback);
+
+        // Verify callback was registered
+        registeredVerbosity.Should().Be((int)TdLogLevel.Info);
+        registeredCallback.Should().NotBeNull();
+
+        // Dispose
+        loggingScope.Dispose();
+
+        // Assert - callback should be cleared
+        registeredVerbosity.Should().Be(0, "Dispose should clear the callback by setting verbosity to 0");
+        registeredCallback.Should().BeNull("Dispose should pass null callback");
+    }
 }
