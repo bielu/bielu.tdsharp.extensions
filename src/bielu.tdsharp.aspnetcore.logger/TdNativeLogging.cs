@@ -40,7 +40,7 @@ public delegate void TdLogMessageCallback(int verbosityLevel, IntPtr message);
 /// delegate marshaling issues and provides better performance and reliability.
 /// </para>
 /// </remarks>
-internal static unsafe class TdNativeLogging
+public static unsafe class TdNativeLogging
 {
     private const string TdJsonLib = "tdjson";
 
