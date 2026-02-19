@@ -22,10 +22,11 @@ using var client = new TdClient();
 
 // Configure TDLib to route ALL its logs to .NET's ILoggerFactory
 // This is the key feature - TDLib internal logs will appear in your .NET logging output
+// Note: Some initial logs may still appear on stderr if they occur before this call
 client.UseTdLibLogging(loggerFactory, TdLogLevel.Info, disableDefaultLogging: true);
 
 Console.WriteLine("TDLib logging has been configured to route to .NET logging.");
-Console.WriteLine("All TDLib internal logs will now appear through the console logger.");
+Console.WriteLine("All subsequent TDLib logs will appear through the console logger.");
 Console.WriteLine();
 
 // You can also create a custom logger for your application
@@ -38,6 +39,12 @@ try
     // This will trigger some TDLib internal logging
     var version = client.Execute(new TdApi.GetOption { Name = "version" });
     appLogger.LogInformation("TDLib version retrieved: {Version}", version);
+    
+    // Trigger more TDLib activity to demonstrate callback receiving messages
+    client.Execute(new TdApi.GetOption { Name = "commit_hash" });
+    
+    // Give some time for any background logs to be processed
+    Thread.Sleep(100);
 }
 catch (Exception ex)
 {
