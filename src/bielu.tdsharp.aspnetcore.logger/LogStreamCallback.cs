@@ -126,11 +126,8 @@ public sealed unsafe class LogStreamCallback : IDisposable
         // First disable the callback to stop receiving messages
         TdNativeLogging.SetLogMessageCallbackFunctionPointer(0, null);
         
-        // Then clear the instance reference
-        if (Volatile.Read(ref _currentInstance) == this)
-        {
-            Volatile.Write(ref _currentInstance, null);
-        }
+        // Atomically clear the instance reference only if it still points to this instance
+        Interlocked.CompareExchange(ref _currentInstance, null, this);
     }
 
     /// <summary>
@@ -230,10 +227,7 @@ public sealed unsafe class LogStreamCallback : IDisposable
         // First disable the callback to stop receiving messages
         TdNativeLogging.SetLogMessageCallbackFunctionPointer(0, null);
 
-        // Then clear the instance reference
-        if (Volatile.Read(ref _currentInstance) == this)
-        {
-            Volatile.Write(ref _currentInstance, null);
-        }
+        // Atomically clear the instance reference only if it still points to this instance
+        Interlocked.CompareExchange(ref _currentInstance, null, this);
     }
 }
