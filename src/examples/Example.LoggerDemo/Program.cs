@@ -2,10 +2,16 @@
 //
 // SPDX-License-Identifier: MIT
 
+using System.Runtime.InteropServices;
 using bielu.tdsharp.aspnetcore.logger;
 using Microsoft.Extensions.Logging;
 using TdLib;
 using TdLib.Bindings;
+
+// Important: Define P/Invoke in your application for the callback to work correctly.
+// This is required due to .NET native interop limitations with cross-assembly callbacks.
+[DllImport("tdjson", CallingConvention = CallingConvention.Cdecl)]
+static extern void td_set_log_message_callback(int maxVerbosityLevel, TdLogMessageCallback? callback);
 
 // Create a standard .NET LoggerFactory with console output
 using var loggerFactory = LoggerFactory.Create(builder =>
@@ -20,10 +26,12 @@ Console.WriteLine();
 // Create TdClient
 using var client = new TdClient();
 
-// Configure TDLib to route ALL its logs to .NET's ILoggerFactory
-// This is the key feature - TDLib internal logs will appear in your .NET logging output
-// Note: Some initial logs may still appear on stderr if they occur before this call
-client.UseTdLibLogging(loggerFactory, TdLogLevel.Info, disableDefaultLogging: true);
+// Use the extension method - pass your P/Invoke as a parameter
+// This returns an IDisposable that handles cleanup
+using var loggingScope = client.UseTdLibLogging(
+    loggerFactory, 
+    TdLogLevel.Info, 
+    td_set_log_message_callback);
 
 Console.WriteLine("TDLib logging has been configured to route to .NET logging.");
 Console.WriteLine("All subsequent TDLib logs will appear through the console logger.");
@@ -43,8 +51,8 @@ try
     // Trigger more TDLib activity to demonstrate callback receiving messages
     client.Execute(new TdApi.GetOption { Name = "commit_hash" });
     
-    // Give some time for any background logs to be processed
-    Thread.Sleep(100);
+    // Give some time for background logs to be processed
+    Thread.Sleep(500);
 }
 catch (Exception ex)
 {
@@ -55,5 +63,5 @@ Console.WriteLine();
 Console.WriteLine("Demo complete. Press any key to exit...");
 Console.ReadKey();
 
-// Clean up - disable the callback before disposing
-TdLoggerExtensions.DisableTdLibLogging();
+// loggingScope.Dispose() is called automatically when exiting the using block,
+// which cleans up the callback and frees resources

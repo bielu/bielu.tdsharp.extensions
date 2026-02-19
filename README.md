@@ -17,6 +17,7 @@ This library provides seamless integration between TDLib's internal logging syst
 - **Full Verbosity Support**: Captures all log levels (Fatal, Error, Warning, Info, Debug, Verbose)
 - **Per-Source Category Logging**: Logs are categorized by their TDLib C++ source file (e.g., `TDLib.AuthData`, `TDLib.Td`, `TDLib.Client`)
 - **Standard Integration**: Works with any logging provider (Console, File, Serilog, NLog, Application Insights, etc.)
+- **TDLib 1.8.60 Compatible**: Works with the latest TDLib versions
 
 ### Installation
 
@@ -26,48 +27,74 @@ dotnet add package bielu.tdsharp.aspnetcore.logger
 
 ### Usage
 
-#### Route TDLib Logs to .NET Logging (Main Feature)
-
-This is the primary use case - injecting `ILoggerFactory` into TDLib's log stream:
+**Note:** Due to .NET native interop requirements, you need to define a simple P/Invoke in your application and pass it to the extension method.
 
 ```csharp
+using System.Runtime.InteropServices;
 using bielu.tdsharp.aspnetcore.logger;
 using Microsoft.Extensions.Logging;
 using TdLib;
 using TdLib.Bindings;
 
-// Create your standard .NET LoggerFactory
+// Step 1: Define P/Invoke in your application (one line)
+[DllImport("tdjson", CallingConvention = CallingConvention.Cdecl)]
+static extern void td_set_log_message_callback(int maxVerbosityLevel, TdLogMessageCallback? callback);
+
+// Step 2: Create your standard .NET LoggerFactory
 using var loggerFactory = LoggerFactory.Create(builder =>
 {
     builder.AddConsole();
     builder.SetMinimumLevel(LogLevel.Debug);
 });
 
-// Create TdClient
+// Step 3: Create TdClient
 using var client = new TdClient();
 
-// Configure TDLib to route ALL its logs to .NET's ILoggerFactory
-// TDLib internal logs will now appear in your console/file/etc. through ILogger
-client.UseTdLibLogging(loggerFactory, TdLogLevel.Info);
+// Step 4: Use the extension method - pass your P/Invoke as a parameter
+using var loggingScope = client.UseTdLibLogging(
+    loggerFactory, 
+    TdLogLevel.Info, 
+    td_set_log_message_callback);
 
-// Optional: Disable TDLib's default console/stderr output
-client.UseTdLibLogging(loggerFactory, TdLogLevel.Info, disableDefaultLogging: true);
+// Now all TDLib logs will appear through your ILoggerFactory!
+// Your app code here...
+
+// loggingScope.Dispose() is called automatically when exiting the using block,
+// which cleans up the callback and frees resources
 ```
 
-#### With ASP.NET Core Dependency Injection
+### With ASP.NET Core Dependency Injection
 
 ```csharp
-// In Program.cs or Startup.cs
-builder.Services.AddSingleton<TdClient>(sp =>
+// In your application
+public class TdClientService : IDisposable
 {
-    var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-    var client = new TdClient();
-    
-    // Route TDLib logs to ASP.NET Core's logging infrastructure
-    client.UseTdLibLogging(loggerFactory, TdLogLevel.Info, disableDefaultLogging: true);
-    
-    return client;
-});
+    [DllImport("tdjson", CallingConvention = CallingConvention.Cdecl)]
+    private static extern void td_set_log_message_callback(int maxVerbosityLevel, TdLogMessageCallback? callback);
+
+    private readonly TdClient _client;
+    private readonly IDisposable _loggingScope;
+
+    public TdClientService(ILoggerFactory loggerFactory)
+    {
+        _client = new TdClient();
+        _loggingScope = _client.UseTdLibLogging(
+            loggerFactory, 
+            TdLogLevel.Info, 
+            td_set_log_message_callback);
+    }
+
+    public TdClient Client => _client;
+
+    public void Dispose()
+    {
+        _loggingScope.Dispose();
+        _client.Dispose();
+    }
+}
+
+// Register in DI
+builder.Services.AddSingleton<TdClientService>();
 ```
 
 ### How It Works
@@ -94,15 +121,11 @@ This allows you to filter TDLib logs by component in your logging configuration.
 
 ### Thread Safety
 
-The logging integration is thread-safe. The `UseTdLibLogging` method should be called once during application initialization, before using the TdClient.
+The logging integration is thread-safe. The callback registration should be done once during application initialization, before using the TdClient extensively.
 
-### Cleanup
+### Why the P/Invoke Must Be in Your Application
 
-When disposing your application, you can optionally clear the logging callback:
-
-```csharp
-TdLoggerExtensions.DisableTdLibLogging();
-```
+Due to how .NET marshals callback delegates to native code, the P/Invoke declaration must be in the consumer's assembly for callbacks to work correctly. This is a .NET runtime requirement. The extension method handles all the complexity - you just need to define the one-line P/Invoke and pass it in.
 
 ## License
 

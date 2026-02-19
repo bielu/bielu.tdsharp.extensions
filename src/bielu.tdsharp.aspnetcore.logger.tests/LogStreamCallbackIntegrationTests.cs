@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+using System.Runtime.InteropServices;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -11,13 +12,17 @@ using TdLib.Bindings;
 namespace bielu.tdsharp.aspnetcore.logger.tests;
 
 /// <summary>
-/// Integration tests that verify the native td_set_log_message_callback actually works.
+/// Integration tests that verify TDLib logging integration works correctly.
 /// These tests require the tdlib.native package to be installed.
 /// </summary>
 public class LogStreamCallbackIntegrationTests
 {
+    // Define P/Invoke in test assembly (required for callbacks to work)
+    [DllImport("tdjson", CallingConvention = CallingConvention.Cdecl)]
+    private static extern void td_set_log_message_callback(int maxVerbosityLevel, TdLogMessageCallback? callback);
+
     [Fact]
-    public void LogStreamCallback_WhenActivated_ShouldInvokeLoggerFactoryCreateLogger()
+    public void LogStreamCallback_WhenCallbackInvoked_ShouldRouteToLoggerFactory()
     {
         // Arrange
         var createdCategories = new List<string>();
@@ -33,51 +38,53 @@ public class LogStreamCallbackIntegrationTests
                 return mockLogger;
             });
 
-        // Act
-        using var logStream = new LogStreamCallback(mockLoggerFactory);
+        using var logHandler = new LogStreamCallback(mockLoggerFactory);
         using var client = new TdClient();
-        
-        logStream.Activate(client, TdLogLevel.Info);
-        
-        // Wait for logs
-        Thread.Sleep(1000);
-        
-        logStream.Deactivate();
 
-        // Assert
-        // The callback should have received messages and created loggers for them
-        createdCategories.Should().NotBeEmpty("The callback should create loggers when TDLib generates log messages");
-        createdCategories.Should().Contain(c => c.StartsWith("TDLib."),
-            "Logger categories should be extracted from TDLib source files (e.g., TDLib.Client, TDLib.Td)");
+        // Create callback in THIS assembly
+        TdLogMessageCallback callback = (verbosity, msgPtr) => logHandler.HandleLogMessage(verbosity, msgPtr);
+        var handle = GCHandle.Alloc(callback);
+
+        try
+        {
+            // Act
+            client.Bindings.SetLogVerbosityLevel((int)TdLogLevel.Info);
+            td_set_log_message_callback((int)TdLogLevel.Info, callback);
+            client.Execute(new TdApi.SetLogStream { LogStream = new TdApi.LogStream.LogStreamEmpty() });
+            
+            // Wait for logs
+            Thread.Sleep(500);
+
+            // Assert
+            // The callback should have received messages and created loggers for them
+            // Note: TDLib.FatalError is created in constructor, so we check for additional categories
+            var tdlibCategories = createdCategories.Where(c => c.StartsWith("TDLib.") && c != "TDLib.FatalError").ToList();
+            tdlibCategories.Should().NotBeEmpty("The callback should create loggers when TDLib generates log messages");
+        }
+        finally
+        {
+            td_set_log_message_callback(0, null);
+            handle.Free();
+        }
     }
 
     [Fact]
-    public void LogStreamCallback_ExtractLoggerCategory_ShouldCreateCorrectLoggerCategories()
+    public void LogStreamCallback_ExtractLoggerCategory_ShouldExtractCorrectCategories()
     {
-        // Arrange
-        var createdCategories = new HashSet<string>();
+        // Test the category extraction logic directly
         
-        var mockLogger = Substitute.For<ILogger>();
-        var mockLoggerFactory = Substitute.For<ILoggerFactory>();
-        mockLoggerFactory
-            .CreateLogger(Arg.Any<string>())
-            .Returns(callInfo =>
-            {
-                createdCategories.Add(callInfo.ArgAt<string>(0));
-                return mockLogger;
-            });
-
-        // Act
-        using var logStream = new LogStreamCallback(mockLoggerFactory);
-        using var client = new TdClient();
-        
-        logStream.Activate(client, TdLogLevel.Info);
-        Thread.Sleep(500);
-        logStream.Deactivate();
-
-        // Assert
-        createdCategories.Should().Contain(c => c.StartsWith("TDLib."),
-            "Logger categories should be extracted from TDLib source files");
+        // Arrange & Act & Assert
+        LogStreamCallback.ExtractLoggerCategory("[ 3][t 0][1234567890.123456789][Client.cpp:600]Create client 1")
+            .Should().Be("TDLib.Client");
+            
+        LogStreamCallback.ExtractLoggerCategory("[ 3][t 4][1234567890.123456789][Td.cpp:138][#1][!MultiTd]Create Td")
+            .Should().Be("TDLib.Td");
+            
+        LogStreamCallback.ExtractLoggerCategory("Some message without source file")
+            .Should().Be("TDLib");
+            
+        LogStreamCallback.ExtractLoggerCategory("")
+            .Should().Be("TDLib");
     }
 
     [Fact]
@@ -94,12 +101,12 @@ public class LogStreamCallbackIntegrationTests
         };
 
         // Pin callback to prevent GC
-        var handle = System.Runtime.InteropServices.GCHandle.Alloc(callback);
+        var handle = GCHandle.Alloc(callback);
 
         try
         {
-            // Act
-            TdNativeLogging.SetLogMessageCallback(5, callback);
+            // Act - using our local P/Invoke (important for callback to work!)
+            td_set_log_message_callback(5, callback);
             
             using var client = new TdClient();
             Thread.Sleep(500);
@@ -110,7 +117,7 @@ public class LogStreamCallbackIntegrationTests
         }
         finally
         {
-            TdNativeLogging.SetLogMessageCallback(0, null);
+            td_set_log_message_callback(0, null);
             handle.Free();
         }
     }
@@ -122,8 +129,117 @@ public class LogStreamCallbackIntegrationTests
         // and can be called without throwing EntryPointNotFoundException
         
         // Act & Assert - should not throw
-        var act = () => TdNativeLogging.SetLogMessageCallback(0, null);
+        var act = () => td_set_log_message_callback(0, null);
         act.Should().NotThrow<EntryPointNotFoundException>(
             "td_set_log_message_callback should be exported by tdjson (TDLib 1.7.5+)");
+    }
+
+    [Fact]
+    public void LogStreamCallback_HandleLogMessage_ShouldLogWithCorrectLevel()
+    {
+        // Arrange
+        var loggedLevels = new List<LogLevel>();
+        
+        var mockLogger = Substitute.For<ILogger>();
+        mockLogger
+            .When(x => x.Log(
+                Arg.Any<LogLevel>(),
+                Arg.Any<EventId>(),
+                Arg.Any<object>(),
+                Arg.Any<Exception?>(),
+                Arg.Any<Func<object, Exception?, string>>()))
+            .Do(callInfo => loggedLevels.Add(callInfo.ArgAt<LogLevel>(0)));
+
+        var mockLoggerFactory = Substitute.For<ILoggerFactory>();
+        mockLoggerFactory.CreateLogger(Arg.Any<string>()).Returns(mockLogger);
+
+        using var logHandler = new LogStreamCallback(mockLoggerFactory);
+
+        // Simulate a log message
+        var testMessage = "[ 3][t 0][1234567890.123456][Client.cpp:600]Test message";
+        var messagePtr = Marshal.StringToHGlobalAnsi(testMessage);
+
+        try
+        {
+            // Act
+            logHandler.HandleLogMessage(3, messagePtr);  // 3 = Info
+
+            // Assert
+            loggedLevels.Should().Contain(LogLevel.Information);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(messagePtr);
+        }
+    }
+
+    [Fact]
+    public void UseTdLibLogging_WithCallbackParameter_ShouldCaptureAndRouteLogs()
+    {
+        // Arrange
+        var createdCategories = new List<string>();
+        
+        var mockLogger = Substitute.For<ILogger>();
+        var mockLoggerFactory = Substitute.For<ILoggerFactory>();
+        mockLoggerFactory
+            .CreateLogger(Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                var category = callInfo.ArgAt<string>(0);
+                createdCategories.Add(category);
+                return mockLogger;
+            });
+
+        using var client = new TdClient();
+
+        // Act - use the extension method with our P/Invoke
+        using var loggingScope = client.UseTdLibLogging(
+            mockLoggerFactory,
+            TdLogLevel.Info,
+            td_set_log_message_callback);
+
+        // Wait for logs
+        Thread.Sleep(500);
+
+        // Assert - should have captured TDLib log messages
+        var tdlibCategories = createdCategories.Where(c => c.StartsWith("TDLib.") && c != "TDLib.FatalError").ToList();
+        tdlibCategories.Should().NotBeEmpty("The extension method should set up logging correctly");
+    }
+
+    [Fact]
+    public void UseTdLibLogging_WhenDisposed_ShouldCleanUpResources()
+    {
+        // Arrange
+        var mockLogger = Substitute.For<ILogger>();
+        var mockLoggerFactory = Substitute.For<ILoggerFactory>();
+        mockLoggerFactory.CreateLogger(Arg.Any<string>()).Returns(mockLogger);
+
+        int? registeredVerbosity = null;
+        TdLogMessageCallback? registeredCallback = null;
+        
+        SetLogMessageCallbackDelegate mockSetCallback = (verbosity, callback) =>
+        {
+            registeredVerbosity = verbosity;
+            registeredCallback = callback;
+        };
+
+        using var client = new TdClient();
+
+        // Act
+        var loggingScope = client.UseTdLibLogging(
+            mockLoggerFactory,
+            TdLogLevel.Info,
+            mockSetCallback);
+
+        // Verify callback was registered
+        registeredVerbosity.Should().Be((int)TdLogLevel.Info);
+        registeredCallback.Should().NotBeNull();
+
+        // Dispose
+        loggingScope.Dispose();
+
+        // Assert - callback should be cleared
+        registeredVerbosity.Should().Be(0, "Dispose should clear the callback by setting verbosity to 0");
+        registeredCallback.Should().BeNull("Dispose should pass null callback");
     }
 }

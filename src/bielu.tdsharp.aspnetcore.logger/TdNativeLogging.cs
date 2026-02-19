@@ -23,6 +23,30 @@ namespace bielu.tdsharp.aspnetcore.logger;
 public delegate void TdLogMessageCallback(int verbosityLevel, IntPtr message);
 
 /// <summary>
+/// Delegate for a function that sets the TDLib log message callback.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Due to .NET native interop limitations, the P/Invoke for <c>td_set_log_message_callback</c>
+/// must be defined in the consumer's assembly for callbacks to work correctly.
+/// This delegate type allows passing that P/Invoke method to extension methods.
+/// </para>
+/// </remarks>
+/// <param name="maxVerbosityLevel">The maximum verbosity level for which the callback will be invoked.</param>
+/// <param name="callback">The callback delegate to invoke, or null to disable the callback.</param>
+/// <example>
+/// <code>
+/// // Define P/Invoke in your application
+/// [DllImport("tdjson", CallingConvention = CallingConvention.Cdecl)]
+/// static extern void td_set_log_message_callback(int maxVerbosityLevel, TdLogMessageCallback? callback);
+/// 
+/// // Pass it to the extension method
+/// client.UseTdLibLogging(loggerFactory, TdLogLevel.Info, td_set_log_message_callback);
+/// </code>
+/// </example>
+public delegate void SetLogMessageCallbackDelegate(int maxVerbosityLevel, TdLogMessageCallback? callback);
+
+/// <summary>
 /// Provides direct access to TDLib's native logging functions that are not exposed through the standard TDLib bindings.
 /// </summary>
 /// <remarks>
@@ -40,7 +64,7 @@ public delegate void TdLogMessageCallback(int verbosityLevel, IntPtr message);
 /// delegate marshaling issues and provides better performance and reliability.
 /// </para>
 /// </remarks>
-internal static unsafe class TdNativeLogging
+public static unsafe class TdNativeLogging
 {
     private const string TdJsonLib = "tdjson";
 
