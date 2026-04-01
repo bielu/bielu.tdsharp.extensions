@@ -15,16 +15,15 @@ namespace bielu.tdsharp.client.factory;
 /// </summary>
 public class TdClientFactory(IClientProvider clientProvider) : ITdClientFactory
 {
+    private readonly IClientProvider _clientProvider = clientProvider ?? throw new ArgumentNullException(nameof(clientProvider));
     private readonly ConcurrentDictionary<string, TdApi.IClient> _clients = new();
-
-
 
     /// <inheritdoc />
     public TdApi.IClient GetOrCreateClient(string identifier)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(identifier);
 
-        return _clients.GetOrAdd(identifier, _ => clientProvider.Create());
+        return _clients.GetOrAdd(identifier, _ => _clientProvider.Create());
     }
 
     /// <inheritdoc />

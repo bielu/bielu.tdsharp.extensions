@@ -14,8 +14,10 @@ namespace bielu.tdsharp.opentelemetry;
 /// </summary>
 public sealed class OpenTelemetryTdJsonClientDecorator(ITdJsonClient inner) : ITdJsonClient, IDisposable
 {
+    private readonly ITdJsonClient _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+
     /// <inheritdoc />
-    public ITdLibBindings Bindings => inner.Bindings;
+    public ITdLibBindings Bindings => _inner.Bindings;
 
     /// <inheritdoc />
     public void Send(string data)
@@ -30,7 +32,7 @@ public sealed class OpenTelemetryTdJsonClientDecorator(ITdJsonClient inner) : IT
 
         try
         {
-            inner.Send(data);
+            _inner.Send(data);
             stopwatch.Stop();
             RecordSuccess("Send", stopwatch.Elapsed.TotalMilliseconds);
         }
@@ -55,7 +57,7 @@ public sealed class OpenTelemetryTdJsonClientDecorator(ITdJsonClient inner) : IT
 
         try
         {
-            var result = inner.Execute(data);
+            var result = _inner.Execute(data);
             stopwatch.Stop();
             RecordSuccess("Execute", stopwatch.Elapsed.TotalMilliseconds);
             return result;
@@ -81,7 +83,7 @@ public sealed class OpenTelemetryTdJsonClientDecorator(ITdJsonClient inner) : IT
 
         try
         {
-            var result = inner.Receive(timeout);
+            var result = _inner.Receive(timeout);
             stopwatch.Stop();
             RecordSuccess("Receive", stopwatch.Elapsed.TotalMilliseconds);
             return result;
@@ -97,7 +99,7 @@ public sealed class OpenTelemetryTdJsonClientDecorator(ITdJsonClient inner) : IT
     /// <inheritdoc />
     public void Dispose()
     {
-        if (inner is IDisposable disposable)
+        if (_inner is IDisposable disposable)
         {
             disposable.Dispose();
         }

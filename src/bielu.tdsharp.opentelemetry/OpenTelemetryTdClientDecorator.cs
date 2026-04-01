@@ -13,12 +13,13 @@ namespace bielu.tdsharp.opentelemetry;
 /// </summary>
 public sealed class OpenTelemetryTdClientDecorator(TdApi.IClient inner) : TdApi.IClient, IDisposable
 {
+    private readonly TdApi.IClient _inner = inner ?? throw new ArgumentNullException(nameof(inner));
 
     /// <inheritdoc />
     public event EventHandler<TdApi.Update> UpdateReceived
     {
-        add => inner.UpdateReceived += value;
-        remove => inner.UpdateReceived -= value;
+        add => _inner.UpdateReceived += value;
+        remove => _inner.UpdateReceived -= value;
     }
 
     /// <inheritdoc />
@@ -36,7 +37,7 @@ public sealed class OpenTelemetryTdClientDecorator(TdApi.IClient inner) : TdApi.
 
         try
         {
-            inner.Send(function);
+            _inner.Send(function);
             stopwatch.Stop();
             RecordSuccess(functionName, "Send", stopwatch.Elapsed.TotalMilliseconds);
         }
@@ -64,7 +65,7 @@ public sealed class OpenTelemetryTdClientDecorator(TdApi.IClient inner) : TdApi.
 
         try
         {
-            var result = inner.Execute(function);
+            var result = _inner.Execute(function);
             stopwatch.Stop();
             RecordSuccess(functionName, "Execute", stopwatch.Elapsed.TotalMilliseconds);
             return result;
@@ -99,7 +100,7 @@ public sealed class OpenTelemetryTdClientDecorator(TdApi.IClient inner) : TdApi.
 
         try
         {
-            var result = await inner.ExecuteAsync(function).ConfigureAwait(false);
+            var result = await _inner.ExecuteAsync(function).ConfigureAwait(false);
             stopwatch.Stop();
             RecordSuccess(functionName, "ExecuteAsync", stopwatch.Elapsed.TotalMilliseconds);
             return result;
@@ -119,7 +120,7 @@ public sealed class OpenTelemetryTdClientDecorator(TdApi.IClient inner) : TdApi.
     /// <inheritdoc />
     public void Dispose()
     {
-        if (inner is IDisposable disposable)
+        if (_inner is IDisposable disposable)
         {
             disposable.Dispose();
         }
