@@ -4,34 +4,53 @@
 
 using bielu.tdsharp.abstractions;
 using TdLib;
+using TdLib.Bindings;
 
 namespace bielu.tdsharp.client.factory;
 
 /// <summary>
-/// A client provider that wraps another <see cref="IClientProvider"/> and applies a decorator.
+/// An abstract client provider that wraps another <see cref="IClientProvider"/>
+/// and allows subclasses to decorate the created client.
 /// </summary>
-public class DecoratorClientProvider : IClientProvider
+public abstract class DecoratorClientProvider : IClientProvider
 {
     private readonly IClientProvider _inner;
-    private readonly TdClientDecorator _decorator;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DecoratorClientProvider"/> class.
     /// </summary>
     /// <param name="inner">The inner provider to wrap.</param>
-    /// <param name="decorator">The decorator to apply.</param>
-    public DecoratorClientProvider(IClientProvider inner, TdClientDecorator decorator)
+    protected DecoratorClientProvider(IClientProvider inner)
     {
         ArgumentNullException.ThrowIfNull(inner);
-        ArgumentNullException.ThrowIfNull(decorator);
         _inner = inner;
-        _decorator = decorator;
     }
 
     /// <inheritdoc />
     public TdApi.IClient Create()
     {
         var client = _inner.Create();
-        return _decorator(client);
+        return Decorate(client);
     }
+
+    /// <inheritdoc />
+    public TdApi.IClient Create(ITdLibBindings bindings)
+    {
+        var client = _inner.Create(bindings);
+        return Decorate(client);
+    }
+
+    /// <inheritdoc />
+    public TdApi.IClient Create(ITdLibBindings bindings, TimeSpan receiverTimeout)
+    {
+        var client = _inner.Create(bindings, receiverTimeout);
+        return Decorate(client);
+    }
+
+    /// <summary>
+    /// Applies decoration to the client created by the inner provider.
+    /// </summary>
+    /// <param name="client">The client to decorate.</param>
+    /// <returns>The decorated client.</returns>
+    protected abstract TdApi.IClient Decorate(TdApi.IClient client);
 }

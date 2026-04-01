@@ -34,7 +34,6 @@ public sealed class OpenTelemetryTdClientDecorator : TdApi.IClient, IDisposable
 
     /// <inheritdoc />
     public void Send<TResult>(TdApi.Function<TResult> function)
-        where TResult : TdApi.Object
     {
         var functionName = GetFunctionName(function);
 
@@ -128,7 +127,6 @@ public sealed class OpenTelemetryTdClientDecorator : TdApi.IClient, IDisposable
     }
 
     private static string GetFunctionName<TResult>(TdApi.Function<TResult> function)
-        where TResult : TdApi.Object
     {
         return function.GetType().Name;
     }

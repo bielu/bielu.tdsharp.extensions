@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 using TdLib;
+using TdLib.Bindings;
 
 namespace bielu.tdsharp.abstractions;
 
@@ -13,8 +14,23 @@ namespace bielu.tdsharp.abstractions;
 public interface IClientProvider
 {
     /// <summary>
-    /// Creates a new <see cref="TdApi.IClient"/> instance.
+    /// Creates a new <see cref="TdApi.IClient"/> instance using the default bindings.
     /// </summary>
     /// <returns>A <see cref="TdApi.IClient"/> instance.</returns>
     TdApi.IClient Create();
+
+    /// <summary>
+    /// Creates a new <see cref="TdApi.IClient"/> instance using the specified bindings.
+    /// </summary>
+    /// <param name="bindings">The TDLib native bindings to use.</param>
+    /// <returns>A <see cref="TdApi.IClient"/> instance.</returns>
+    TdApi.IClient Create(ITdLibBindings bindings);
+
+    /// <summary>
+    /// Creates a new <see cref="TdApi.IClient"/> instance using the specified bindings and receiver timeout.
+    /// </summary>
+    /// <param name="bindings">The TDLib native bindings to use.</param>
+    /// <param name="receiverTimeout">The timeout for the receiver's polling loop.</param>
+    /// <returns>A <see cref="TdApi.IClient"/> instance.</returns>
+    TdApi.IClient Create(ITdLibBindings bindings, TimeSpan receiverTimeout);
 }

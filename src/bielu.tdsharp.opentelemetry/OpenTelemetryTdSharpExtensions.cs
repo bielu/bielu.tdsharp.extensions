@@ -2,10 +2,11 @@
 //
 // SPDX-License-Identifier: MIT
 
-using bielu.tdsharp.client.factory;
+using bielu.tdsharp.abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
+using TdLib.Bindings;
 
 namespace bielu.tdsharp.opentelemetry;
 
@@ -15,16 +16,32 @@ namespace bielu.tdsharp.opentelemetry;
 public static class OpenTelemetryTdSharpExtensions
 {
     /// <summary>
-    /// Registers the OpenTelemetry decorator for TDLib clients in the service collection.
-    /// This adds tracing and metrics to all TDLib operations performed through the client factory.
+    /// Registers an <see cref="IClientProvider"/> with OpenTelemetry instrumentation
+    /// using auto-detected bindings and default receiver timeout.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddTdSharpOpenTelemetry(this IServiceCollection services)
     {
-        services.AddSingleton<TdClientDecorator>(inner =>
-            new OpenTelemetryTdClientDecorator(inner));
+        services.AddSingleton<IClientProvider, OpenTelemetryClientProvider>();
+        return services;
+    }
 
+    /// <summary>
+    /// Registers an <see cref="IClientProvider"/> with OpenTelemetry instrumentation
+    /// using the specified bindings and receiver timeout.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="bindings">The TDLib native bindings to use.</param>
+    /// <param name="receiverTimeout">The timeout for the receiver's polling loop.</param>
+    /// <returns>The service collection for chaining.</returns>
+    public static IServiceCollection AddTdSharpOpenTelemetry(
+        this IServiceCollection services,
+        ITdLibBindings bindings,
+        TimeSpan receiverTimeout)
+    {
+        services.AddSingleton<IClientProvider>(
+            new OpenTelemetryClientProvider(bindings, receiverTimeout));
         return services;
     }
 

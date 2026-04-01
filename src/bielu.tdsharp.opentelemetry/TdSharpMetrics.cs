@@ -10,32 +10,79 @@ namespace bielu.tdsharp.opentelemetry;
 /// <summary>
 /// Provides OpenTelemetry metrics for TDLib operations.
 /// </summary>
-internal sealed class TdSharpMetrics
+internal static class TdSharpMetrics
 {
     internal static readonly Meter Meter = new(TdSharpInstrumentation.Name, TdSharpInstrumentation.Version);
 
+    // --- Client-level metrics ---
+
     /// <summary>
-    /// Counts the total number of TDLib operations executed.
+    /// Counts the total number of TDLib client operations executed.
     /// </summary>
     internal static readonly Counter<long> OperationCount =
         Meter.CreateCounter<long>(
-            "tdsharp.operations.count",
-            description: "Total number of TDLib operations executed");
+            "tdsharp.client.operations.count",
+            description: "Total number of TDLib client operations executed");
 
     /// <summary>
-    /// Records the duration of TDLib operations in milliseconds.
+    /// Records the duration of TDLib client operations in milliseconds.
     /// </summary>
     internal static readonly Histogram<double> OperationDuration =
         Meter.CreateHistogram<double>(
-            "tdsharp.operations.duration",
+            "tdsharp.client.operations.duration",
             unit: "ms",
-            description: "Duration of TDLib operations in milliseconds");
+            description: "Duration of TDLib client operations in milliseconds");
 
     /// <summary>
-    /// Counts the number of TDLib operation errors.
+    /// Counts the number of TDLib client operation errors.
     /// </summary>
     internal static readonly Counter<long> OperationErrors =
         Meter.CreateCounter<long>(
-            "tdsharp.operations.errors",
-            description: "Total number of TDLib operation errors");
+            "tdsharp.client.operations.errors",
+            description: "Total number of TDLib client operation errors");
+
+    // --- Receiver-level metrics ---
+
+    /// <summary>
+    /// Counts the total number of receiver events (Received, AuthorizationStateChanged, ExceptionThrown).
+    /// </summary>
+    internal static readonly Counter<long> ReceiverEventsCount =
+        Meter.CreateCounter<long>(
+            "tdsharp.receiver.events.count",
+            description: "Total number of TDLib receiver events");
+
+    /// <summary>
+    /// Counts the number of receiver errors (exceptions thrown by the receiver).
+    /// </summary>
+    internal static readonly Counter<long> ReceiverErrors =
+        Meter.CreateCounter<long>(
+            "tdsharp.receiver.errors",
+            description: "Total number of TDLib receiver errors");
+
+    // --- JSON client-level metrics ---
+
+    /// <summary>
+    /// Counts the total number of JSON client operations.
+    /// </summary>
+    internal static readonly Counter<long> JsonClientOperationCount =
+        Meter.CreateCounter<long>(
+            "tdsharp.json_client.operations.count",
+            description: "Total number of TDLib JSON client operations");
+
+    /// <summary>
+    /// Records the duration of JSON client operations in milliseconds.
+    /// </summary>
+    internal static readonly Histogram<double> JsonClientOperationDuration =
+        Meter.CreateHistogram<double>(
+            "tdsharp.json_client.operations.duration",
+            unit: "ms",
+            description: "Duration of TDLib JSON client operations in milliseconds");
+
+    /// <summary>
+    /// Counts the number of JSON client operation errors.
+    /// </summary>
+    internal static readonly Counter<long> JsonClientOperationErrors =
+        Meter.CreateCounter<long>(
+            "tdsharp.json_client.operations.errors",
+            description: "Total number of TDLib JSON client operation errors");
 }

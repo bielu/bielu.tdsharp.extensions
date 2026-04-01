@@ -18,7 +18,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\bielu.tdsharp.abstractions\bielu.tdsharp.abstractions.csproj" />
-    <ProjectReference Include="..\bielu.tdsharp.client.factory\bielu.tdsharp.client.factory.csproj" />
   </ItemGroup>
 
 </Project>
