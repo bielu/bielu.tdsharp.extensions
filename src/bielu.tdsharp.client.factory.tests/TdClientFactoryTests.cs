@@ -82,6 +82,184 @@ public class TdClientFactoryTests
         var act = () => new TdClientFactory(null!);
         act.Should().Throw<ArgumentNullException>();
     }
+
+    [Fact]
+    public async Task CloseClientAsync_SendsCloseAndDisposesClient()
+    {
+        // Arrange
+        var mockProvider = Substitute.For<IClientProvider>();
+        var mockClient = Substitute.For<TdApi.IClient, IDisposable>();
+        mockProvider.Create().Returns((TdApi.IClient)mockClient);
+        ((TdApi.IClient)mockClient).ExecuteAsync(Arg.Any<TdApi.Close>())
+            .Returns(Task.FromResult(new TdApi.Ok()));
+
+        var factory = new TdClientFactory(mockProvider);
+        factory.GetOrCreateClient("+1234567890");
+
+        // Act
+        await factory.CloseClientAsync("+1234567890");
+
+        // Assert
+        await ((TdApi.IClient)mockClient).Received(1).ExecuteAsync(Arg.Any<TdApi.Close>());
+        ((IDisposable)mockClient).Received(1).Dispose();
+    }
+
+    [Fact]
+    public async Task CloseClientAsync_RemovesClientFromFactory()
+    {
+        // Arrange
+        var mockProvider = Substitute.For<IClientProvider>();
+        var mockClient1 = Substitute.For<TdApi.IClient, IDisposable>();
+        var mockClient2 = Substitute.For<TdApi.IClient>();
+        mockProvider.Create().Returns((TdApi.IClient)mockClient1, mockClient2);
+        ((TdApi.IClient)mockClient1).ExecuteAsync(Arg.Any<TdApi.Close>())
+            .Returns(Task.FromResult(new TdApi.Ok()));
+
+        var factory = new TdClientFactory(mockProvider);
+        factory.GetOrCreateClient("+1234567890");
+
+        // Act
+        await factory.CloseClientAsync("+1234567890");
+
+        // Creating again should produce a new client
+        var newClient = factory.GetOrCreateClient("+1234567890");
+
+        // Assert
+        newClient.Should().BeSameAs(mockClient2);
+        mockProvider.Received(2).Create();
+    }
+
+    [Fact]
+    public async Task CloseClientAsync_ThrowsWhenClientNotFound()
+    {
+        // Arrange
+        var mockProvider = Substitute.For<IClientProvider>();
+        var factory = new TdClientFactory(mockProvider);
+
+        // Act & Assert
+        var act = async () => await factory.CloseClientAsync("+1234567890");
+        await act.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task CloseClientAsync_ThrowsOnNullIdentifier()
+    {
+        // Arrange
+        var mockProvider = Substitute.For<IClientProvider>();
+        var factory = new TdClientFactory(mockProvider);
+
+        // Act & Assert
+        var act = async () => await factory.CloseClientAsync(null!);
+        await act.Should().ThrowAsync<ArgumentException>();
+    }
+
+    [Fact]
+    public async Task CloseClientAsync_DisposesEvenWhenCloseThrows()
+    {
+        // Arrange
+        var mockProvider = Substitute.For<IClientProvider>();
+        var mockClient = Substitute.For<TdApi.IClient, IDisposable>();
+        mockProvider.Create().Returns((TdApi.IClient)mockClient);
+        ((TdApi.IClient)mockClient).ExecuteAsync(Arg.Any<TdApi.Close>())
+            .Returns<TdApi.Ok>(_ => throw new TdException(new TdApi.Error { Code = 500, Message = "Error" }));
+
+        var factory = new TdClientFactory(mockProvider);
+        factory.GetOrCreateClient("+1234567890");
+
+        // Act & Assert
+        var act = async () => await factory.CloseClientAsync("+1234567890");
+        await act.Should().ThrowAsync<TdException>();
+        ((IDisposable)mockClient).Received(1).Dispose();
+    }
+
+    [Fact]
+    public async Task DestroyClientAsync_SendsLogOutAndDisposesClient()
+    {
+        // Arrange
+        var mockProvider = Substitute.For<IClientProvider>();
+        var mockClient = Substitute.For<TdApi.IClient, IDisposable>();
+        mockProvider.Create().Returns((TdApi.IClient)mockClient);
+        ((TdApi.IClient)mockClient).ExecuteAsync(Arg.Any<TdApi.LogOut>())
+            .Returns(Task.FromResult(new TdApi.Ok()));
+
+        var factory = new TdClientFactory(mockProvider);
+        factory.GetOrCreateClient("+1234567890");
+
+        // Act
+        await factory.DestroyClientAsync("+1234567890");
+
+        // Assert
+        await ((TdApi.IClient)mockClient).Received(1).ExecuteAsync(Arg.Any<TdApi.LogOut>());
+        ((IDisposable)mockClient).Received(1).Dispose();
+    }
+
+    [Fact]
+    public async Task DestroyClientAsync_RemovesClientFromFactory()
+    {
+        // Arrange
+        var mockProvider = Substitute.For<IClientProvider>();
+        var mockClient1 = Substitute.For<TdApi.IClient, IDisposable>();
+        var mockClient2 = Substitute.For<TdApi.IClient>();
+        mockProvider.Create().Returns((TdApi.IClient)mockClient1, mockClient2);
+        ((TdApi.IClient)mockClient1).ExecuteAsync(Arg.Any<TdApi.LogOut>())
+            .Returns(Task.FromResult(new TdApi.Ok()));
+
+        var factory = new TdClientFactory(mockProvider);
+        factory.GetOrCreateClient("+1234567890");
+
+        // Act
+        await factory.DestroyClientAsync("+1234567890");
+
+        // Creating again should produce a new client
+        var newClient = factory.GetOrCreateClient("+1234567890");
+
+        // Assert
+        newClient.Should().BeSameAs(mockClient2);
+        mockProvider.Received(2).Create();
+    }
+
+    [Fact]
+    public async Task DestroyClientAsync_ThrowsWhenClientNotFound()
+    {
+        // Arrange
+        var mockProvider = Substitute.For<IClientProvider>();
+        var factory = new TdClientFactory(mockProvider);
+
+        // Act & Assert
+        var act = async () => await factory.DestroyClientAsync("+1234567890");
+        await act.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task DestroyClientAsync_ThrowsOnNullIdentifier()
+    {
+        // Arrange
+        var mockProvider = Substitute.For<IClientProvider>();
+        var factory = new TdClientFactory(mockProvider);
+
+        // Act & Assert
+        var act = async () => await factory.DestroyClientAsync(null!);
+        await act.Should().ThrowAsync<ArgumentException>();
+    }
+
+    [Fact]
+    public async Task DestroyClientAsync_DisposesEvenWhenLogOutThrows()
+    {
+        // Arrange
+        var mockProvider = Substitute.For<IClientProvider>();
+        var mockClient = Substitute.For<TdApi.IClient, IDisposable>();
+        mockProvider.Create().Returns((TdApi.IClient)mockClient);
+        ((TdApi.IClient)mockClient).ExecuteAsync(Arg.Any<TdApi.LogOut>())
+            .Returns<TdApi.Ok>(_ => throw new TdException(new TdApi.Error { Code = 500, Message = "Error" }));
+
+        var factory = new TdClientFactory(mockProvider);
+        factory.GetOrCreateClient("+1234567890");
+
+        // Act & Assert
+        var act = async () => await factory.DestroyClientAsync("+1234567890");
+        await act.Should().ThrowAsync<TdException>();
+        ((IDisposable)mockClient).Received(1).Dispose();
+    }
 }
 
 public class DefaultClientProviderTests

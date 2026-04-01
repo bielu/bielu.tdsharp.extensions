@@ -42,6 +42,15 @@ internal static class TdSharpMetrics
             "tdsharp.client.operations.errors",
             description: "Total number of TDLib client operation errors");
 
+    /// <summary>
+    /// Tracks the number of currently in-flight (pending) async operations.
+    /// Incremented before an async call starts and decremented when it completes.
+    /// </summary>
+    internal static readonly UpDownCounter<long> OperationsInflight =
+        Meter.CreateUpDownCounter<long>(
+            "tdsharp.client.operations.inflight",
+            description: "Number of currently in-flight TDLib client async operations");
+
     // --- Receiver-level metrics ---
 
     /// <summary>
@@ -79,6 +88,14 @@ internal static class TdSharpMetrics
             observeValues: ObserveAuthorizedClients,
             description: "Current number of TDLib clients by authorization state");
 
+    /// <summary>
+    /// Counts authorization state transitions, tagged by <c>tdsharp.auth_state.from</c> and <c>tdsharp.auth_state.to</c>.
+    /// </summary>
+    internal static readonly Counter<long> AuthStateTransitions =
+        Meter.CreateCounter<long>(
+            "tdsharp.client.auth_state.transitions",
+            description: "Total number of TDLib client authorization state transitions");
+
     private static IEnumerable<Measurement<int>> ObserveAuthorizedClients()
     {
         // Snapshot the dictionary and group by auth state.
@@ -91,6 +108,33 @@ internal static class TdSharpMetrics
                 new TagList { { "tdsharp.auth_state", group.Key } });
         }
     }
+
+    // --- Factory-level metrics ---
+
+    /// <summary>
+    /// Tracks the number of currently active (non-disposed) TDLib clients.
+    /// </summary>
+    internal static readonly UpDownCounter<long> ActiveClients =
+        Meter.CreateUpDownCounter<long>(
+            "tdsharp.factory.clients.active",
+            description: "Number of currently active TDLib clients managed by the factory");
+
+    /// <summary>
+    /// Counts the total number of TDLib clients created by the factory.
+    /// </summary>
+    internal static readonly Counter<long> ClientsCreated =
+        Meter.CreateCounter<long>(
+            "tdsharp.factory.clients.created",
+            description: "Total number of TDLib clients created");
+
+    /// <summary>
+    /// Counts the total number of TDLib clients closed by the factory (both permanent and non-permanent).
+    /// Tagged with <c>tdsharp.disposal_type</c> ("permanent" or "temporary").
+    /// </summary>
+    internal static readonly Counter<long> ClientsClosed =
+        Meter.CreateCounter<long>(
+            "tdsharp.factory.clients.closed",
+            description: "Total number of TDLib clients closed");
 
     // --- JSON client-level metrics ---
 

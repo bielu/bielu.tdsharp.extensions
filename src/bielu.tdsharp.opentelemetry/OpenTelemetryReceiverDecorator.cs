@@ -109,6 +109,18 @@ public sealed class OpenTelemetryReceiverDecorator : IReceiver, IDisposable
 
         TdSharpMetrics.ReceiverEventsCount.Add(1, tags);
 
+        // Record the state transition if there was a previous state.
+        var previousState = TdSharpMetrics.ClientAuthStates.TryGetValue(_clientId, out var prev) ? prev : null;
+        if (previousState != null)
+        {
+            var transitionTags = new TagList
+            {
+                { "tdsharp.auth_state.from", previousState },
+                { "tdsharp.auth_state.to", stateType }
+            };
+            TdSharpMetrics.AuthStateTransitions.Add(1, transitionTags);
+        }
+
         // Record the current auth state for this client.
         // The ObservableGauge callback in TdSharpMetrics groups by state on each collection.
         TdSharpMetrics.ClientAuthStates[_clientId] = stateType;

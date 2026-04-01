@@ -100,6 +100,12 @@ public sealed class OpenTelemetryTdClientDecorator : TdApi.IClient, IDisposable
 
         SetActivityTags(activity, functionName, "ExecuteAsync");
 
+        var inflightTags = new TagList
+        {
+            { "tdsharp.function", functionName }
+        };
+
+        TdSharpMetrics.OperationsInflight.Add(1, inflightTags);
         var stopwatch = Stopwatch.StartNew();
 
         try
@@ -114,6 +120,10 @@ public sealed class OpenTelemetryTdClientDecorator : TdApi.IClient, IDisposable
             stopwatch.Stop();
             RecordError(activity, functionName, "ExecuteAsync", stopwatch.Elapsed.TotalMilliseconds, ex);
             throw;
+        }
+        finally
+        {
+            TdSharpMetrics.OperationsInflight.Add(-1, inflightTags);
         }
     }
 
