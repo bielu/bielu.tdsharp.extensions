@@ -13,27 +13,18 @@ namespace bielu.tdsharp.client.factory;
 /// using an <see cref="IClientProvider"/> to create new clients.
 /// Also supports closing and permanently destroying clients.
 /// </summary>
-public class TdClientFactory : ITdClientFactory
+public class TdClientFactory(IClientProvider clientProvider) : ITdClientFactory
 {
-    private readonly IClientProvider _clientProvider;
     private readonly ConcurrentDictionary<string, TdApi.IClient> _clients = new();
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="TdClientFactory"/> class.
-    /// </summary>
-    /// <param name="clientProvider">The provider used to create new client instances.</param>
-    public TdClientFactory(IClientProvider clientProvider)
-    {
-        ArgumentNullException.ThrowIfNull(clientProvider);
-        _clientProvider = clientProvider;
-    }
+
 
     /// <inheritdoc />
     public TdApi.IClient GetOrCreateClient(string identifier)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(identifier);
 
-        return _clients.GetOrAdd(identifier, _ => _clientProvider.Create());
+        return _clients.GetOrAdd(identifier, _ => clientProvider.Create());
     }
 
     /// <inheritdoc />

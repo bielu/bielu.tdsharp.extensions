@@ -12,22 +12,10 @@ namespace bielu.tdsharp.opentelemetry;
 /// An OpenTelemetry-instrumented decorator for <see cref="ITdJsonClient"/> that adds
 /// tracing and metrics to JSON-level TDLib operations (Send, Execute, Receive).
 /// </summary>
-public sealed class OpenTelemetryTdJsonClientDecorator : ITdJsonClient, IDisposable
+public sealed class OpenTelemetryTdJsonClientDecorator(ITdJsonClient inner) : ITdJsonClient, IDisposable
 {
-    private readonly ITdJsonClient _inner;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="OpenTelemetryTdJsonClientDecorator"/> class.
-    /// </summary>
-    /// <param name="inner">The inner JSON client to decorate.</param>
-    public OpenTelemetryTdJsonClientDecorator(ITdJsonClient inner)
-    {
-        ArgumentNullException.ThrowIfNull(inner);
-        _inner = inner;
-    }
-
     /// <inheritdoc />
-    public ITdLibBindings Bindings => _inner.Bindings;
+    public ITdLibBindings Bindings => inner.Bindings;
 
     /// <inheritdoc />
     public void Send(string data)
@@ -42,7 +30,7 @@ public sealed class OpenTelemetryTdJsonClientDecorator : ITdJsonClient, IDisposa
 
         try
         {
-            _inner.Send(data);
+            inner.Send(data);
             stopwatch.Stop();
             RecordSuccess("Send", stopwatch.Elapsed.TotalMilliseconds);
         }
@@ -67,7 +55,7 @@ public sealed class OpenTelemetryTdJsonClientDecorator : ITdJsonClient, IDisposa
 
         try
         {
-            var result = _inner.Execute(data);
+            var result = inner.Execute(data);
             stopwatch.Stop();
             RecordSuccess("Execute", stopwatch.Elapsed.TotalMilliseconds);
             return result;
@@ -93,7 +81,7 @@ public sealed class OpenTelemetryTdJsonClientDecorator : ITdJsonClient, IDisposa
 
         try
         {
-            var result = _inner.Receive(timeout);
+            var result = inner.Receive(timeout);
             stopwatch.Stop();
             RecordSuccess("Receive", stopwatch.Elapsed.TotalMilliseconds);
             return result;
@@ -109,7 +97,7 @@ public sealed class OpenTelemetryTdJsonClientDecorator : ITdJsonClient, IDisposa
     /// <inheritdoc />
     public void Dispose()
     {
-        if (_inner is IDisposable disposable)
+        if (inner is IDisposable disposable)
         {
             disposable.Dispose();
         }

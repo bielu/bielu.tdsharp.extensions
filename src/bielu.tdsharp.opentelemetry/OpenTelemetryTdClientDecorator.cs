@@ -11,25 +11,14 @@ namespace bielu.tdsharp.opentelemetry;
 /// An OpenTelemetry-instrumented decorator for <see cref="TdApi.IClient"/> that adds
 /// distributed tracing and metrics to all TDLib operations.
 /// </summary>
-public sealed class OpenTelemetryTdClientDecorator : TdApi.IClient, IDisposable
+public sealed class OpenTelemetryTdClientDecorator(TdApi.IClient inner) : TdApi.IClient, IDisposable
 {
-    private readonly TdApi.IClient _inner;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="OpenTelemetryTdClientDecorator"/> class.
-    /// </summary>
-    /// <param name="inner">The inner client to decorate.</param>
-    public OpenTelemetryTdClientDecorator(TdApi.IClient inner)
-    {
-        ArgumentNullException.ThrowIfNull(inner);
-        _inner = inner;
-    }
 
     /// <inheritdoc />
     public event EventHandler<TdApi.Update> UpdateReceived
     {
-        add => _inner.UpdateReceived += value;
-        remove => _inner.UpdateReceived -= value;
+        add => inner.UpdateReceived += value;
+        remove => inner.UpdateReceived -= value;
     }
 
     /// <inheritdoc />
@@ -47,7 +36,7 @@ public sealed class OpenTelemetryTdClientDecorator : TdApi.IClient, IDisposable
 
         try
         {
-            _inner.Send(function);
+            inner.Send(function);
             stopwatch.Stop();
             RecordSuccess(functionName, "Send", stopwatch.Elapsed.TotalMilliseconds);
         }
@@ -75,7 +64,7 @@ public sealed class OpenTelemetryTdClientDecorator : TdApi.IClient, IDisposable
 
         try
         {
-            var result = _inner.Execute(function);
+            var result = inner.Execute(function);
             stopwatch.Stop();
             RecordSuccess(functionName, "Execute", stopwatch.Elapsed.TotalMilliseconds);
             return result;
@@ -110,7 +99,7 @@ public sealed class OpenTelemetryTdClientDecorator : TdApi.IClient, IDisposable
 
         try
         {
-            var result = await _inner.ExecuteAsync(function).ConfigureAwait(false);
+            var result = await inner.ExecuteAsync(function).ConfigureAwait(false);
             stopwatch.Stop();
             RecordSuccess(functionName, "ExecuteAsync", stopwatch.Elapsed.TotalMilliseconds);
             return result;
@@ -130,7 +119,7 @@ public sealed class OpenTelemetryTdClientDecorator : TdApi.IClient, IDisposable
     /// <inheritdoc />
     public void Dispose()
     {
-        if (_inner is IDisposable disposable)
+        if (inner is IDisposable disposable)
         {
             disposable.Dispose();
         }
