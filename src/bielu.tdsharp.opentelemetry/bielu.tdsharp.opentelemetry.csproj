@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="OpenTelemetry.Api" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="TDLib" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="bielu.tdsharp.opentelemetry.tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\bielu.tdsharp.abstractions\bielu.tdsharp.abstractions.csproj" />
+  </ItemGroup>
+
+</Project>
