@@ -15,15 +15,19 @@ namespace bielu.tdsharp.opentelemetry;
 public sealed class OpenTelemetryReceiverDecorator : IReceiver, IDisposable
 {
     private readonly IReceiver _inner;
+    private readonly string _clientId;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="OpenTelemetryReceiverDecorator"/> class.
     /// </summary>
     /// <param name="inner">The inner receiver to decorate.</param>
-    public OpenTelemetryReceiverDecorator(IReceiver inner)
+    /// <param name="clientId">An identifier for the client, used as a tag on auth-state metrics.</param>
+    public OpenTelemetryReceiverDecorator(IReceiver inner, string clientId)
     {
         ArgumentNullException.ThrowIfNull(inner);
+        ArgumentException.ThrowIfNullOrWhiteSpace(clientId);
         _inner = inner;
+        _clientId = clientId;
 
         _inner.Received += OnReceived;
         _inner.AuthorizationStateChanged += OnAuthorizationStateChanged;
@@ -55,6 +59,9 @@ public sealed class OpenTelemetryReceiverDecorator : IReceiver, IDisposable
         _inner.Received -= OnReceived;
         _inner.AuthorizationStateChanged -= OnAuthorizationStateChanged;
         _inner.ExceptionThrown -= OnExceptionThrown;
+
+        // Remove this client from the auth-state tracking so the gauge no longer reports it.
+        TdSharpMetrics.ClientAuthStates.TryRemove(_clientId, out _);
 
         if (_inner is IDisposable disposable)
         {
@@ -92,6 +99,7 @@ public sealed class OpenTelemetryReceiverDecorator : IReceiver, IDisposable
         var stateType = state.GetType().Name;
         activity?.SetTag("tdsharp.receiver.event", "AuthorizationStateChanged");
         activity?.SetTag("tdsharp.receiver.auth_state", stateType);
+        activity?.SetTag("tdsharp.client_id", _clientId);
 
         var tags = new TagList
         {
@@ -100,6 +108,10 @@ public sealed class OpenTelemetryReceiverDecorator : IReceiver, IDisposable
         };
 
         TdSharpMetrics.ReceiverEventsCount.Add(1, tags);
+
+        // Record the current auth state for this client.
+        // The ObservableGauge callback in TdSharpMetrics groups by state on each collection.
+        TdSharpMetrics.ClientAuthStates[_clientId] = stateType;
 
         AuthorizationStateChanged?.Invoke(this, state);
     }

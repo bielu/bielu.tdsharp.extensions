@@ -200,8 +200,20 @@ public class OpenTelemetryReceiverDecoratorTests
     [Fact]
     public void Constructor_ThrowsOnNullInner()
     {
-        var act = () => new OpenTelemetryReceiverDecorator(null!);
+        var act = () => new OpenTelemetryReceiverDecorator(null!, "test-client");
         act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void Constructor_ThrowsOnNullOrWhiteSpaceClientId()
+    {
+        var mockInner = Substitute.For<TdLib.Bindings.IReceiver>();
+
+        var actNull = () => new OpenTelemetryReceiverDecorator(mockInner, null!);
+        actNull.Should().Throw<ArgumentException>();
+
+        var actEmpty = () => new OpenTelemetryReceiverDecorator(mockInner, "  ");
+        actEmpty.Should().Throw<ArgumentException>();
     }
 
     [Fact]
@@ -209,7 +221,7 @@ public class OpenTelemetryReceiverDecoratorTests
     {
         // Arrange
         var mockInner = Substitute.For<TdLib.Bindings.IReceiver>();
-        var decorator = new OpenTelemetryReceiverDecorator(mockInner);
+        var decorator = new OpenTelemetryReceiverDecorator(mockInner, "test-client");
 
         // Act
         decorator.Start();
@@ -223,13 +235,51 @@ public class OpenTelemetryReceiverDecoratorTests
     {
         // Arrange - create a combined mock that implements both interfaces
         var mockInner = Substitute.For<TdLib.Bindings.IReceiver>();
-        var decorator = new OpenTelemetryReceiverDecorator(mockInner);
+        var decorator = new OpenTelemetryReceiverDecorator(mockInner, "test-client");
 
         // Act - should not throw even if inner is not IDisposable
         var act = () => decorator.Dispose();
 
         // Assert
         act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void AuthorizationStateChanged_TracksStateInDictionary()
+    {
+        // Arrange
+        var clientId = $"auth-test-{Guid.NewGuid()}";
+        var mockInner = Substitute.For<TdLib.Bindings.IReceiver>();
+        var decorator = new OpenTelemetryReceiverDecorator(mockInner, clientId);
+
+        // Subscribe to capture the forwarded event
+        TdApi.AuthorizationState? forwardedState = null;
+        decorator.AuthorizationStateChanged += (_, s) => forwardedState = s;
+
+        // Act - simulate the inner receiver raising AuthorizationStateChanged
+        mockInner.AuthorizationStateChanged += Raise.Event<EventHandler<TdApi.AuthorizationState>>(
+            mockInner,
+            new TdApi.AuthorizationState.AuthorizationStateReady());
+
+        // Assert - the state should be tracked
+        bielu.tdsharp.opentelemetry.TdSharpMetrics.ClientAuthStates
+            .TryGetValue(clientId, out var trackedState).Should().BeTrue();
+        trackedState.Should().Be("AuthorizationStateReady");
+        forwardedState.Should().BeOfType<TdApi.AuthorizationState.AuthorizationStateReady>();
+
+        // Act - change to a new state
+        mockInner.AuthorizationStateChanged += Raise.Event<EventHandler<TdApi.AuthorizationState>>(
+            mockInner,
+            new TdApi.AuthorizationState.AuthorizationStateClosed());
+
+        bielu.tdsharp.opentelemetry.TdSharpMetrics.ClientAuthStates
+            .TryGetValue(clientId, out trackedState).Should().BeTrue();
+        trackedState.Should().Be("AuthorizationStateClosed");
+
+        // Act - dispose removes the entry
+        decorator.Dispose();
+        bielu.tdsharp.opentelemetry.TdSharpMetrics.ClientAuthStates
+            .ContainsKey(clientId).Should().BeFalse();
     }
 }
 

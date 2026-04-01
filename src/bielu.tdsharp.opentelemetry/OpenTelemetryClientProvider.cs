@@ -16,6 +16,7 @@ public class OpenTelemetryClientProvider : IClientProvider
 {
     private readonly ITdLibBindings _bindings;
     private readonly TimeSpan _receiverTimeout;
+    private static int _clientCounter;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="OpenTelemetryClientProvider"/> class
@@ -60,6 +61,8 @@ public class OpenTelemetryClientProvider : IClientProvider
 
     private static TdApi.IClient CreateInstrumented(ITdLibBindings bindings, TimeSpan receiverTimeout)
     {
+        var clientId = $"client-{Interlocked.Increment(ref _clientCounter)}";
+
         // 1. Create the raw JSON client with specified bindings
         var jsonClient = new TdJsonClient(bindings);
 
@@ -69,8 +72,8 @@ public class OpenTelemetryClientProvider : IClientProvider
         // 3. Create receiver with the instrumented JSON client and specified timeout
         var receiver = new Receiver(instrumentedJsonClient, receiverTimeout);
 
-        // 4. Wrap receiver with OTel instrumentation
-        var instrumentedReceiver = new OpenTelemetryReceiverDecorator(receiver);
+        // 4. Wrap receiver with OTel instrumentation, passing client ID for auth-state tracking
+        var instrumentedReceiver = new OpenTelemetryReceiverDecorator(receiver, clientId);
 
         // 5. Create TdClient with instrumented JSON client + receiver
         var client = new TdClient(instrumentedJsonClient, instrumentedReceiver);

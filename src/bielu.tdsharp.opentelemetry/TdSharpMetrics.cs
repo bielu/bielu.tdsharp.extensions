@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 
@@ -58,6 +59,38 @@ internal static class TdSharpMetrics
         Meter.CreateCounter<long>(
             "tdsharp.receiver.errors",
             description: "Total number of TDLib receiver errors");
+
+    // --- Authorization state metrics ---
+
+    /// <summary>
+    /// Thread-safe mapping of client ID → current authorization state type name.
+    /// Updated by <see cref="OpenTelemetryReceiverDecorator"/> on auth state changes.
+    /// </summary>
+    internal static readonly ConcurrentDictionary<string, string> ClientAuthStates = new();
+
+    /// <summary>
+    /// Reports the current number of TDLib clients grouped by authorization state.
+    /// Each measurement is tagged with <c>tdsharp.auth_state</c>.
+    /// Observed on each metrics collection cycle.
+    /// </summary>
+    internal static readonly ObservableGauge<int> AuthorizedClientsGauge =
+        Meter.CreateObservableGauge(
+            "tdsharp.client.auth_state.count",
+            observeValues: ObserveAuthorizedClients,
+            description: "Current number of TDLib clients by authorization state");
+
+    private static IEnumerable<Measurement<int>> ObserveAuthorizedClients()
+    {
+        // Snapshot the dictionary and group by auth state.
+        var snapshot = ClientAuthStates.ToArray();
+
+        foreach (var group in snapshot.GroupBy(kvp => kvp.Value))
+        {
+            yield return new Measurement<int>(
+                group.Count(),
+                new TagList { { "tdsharp.auth_state", group.Key } });
+        }
+    }
 
     // --- JSON client-level metrics ---
 
