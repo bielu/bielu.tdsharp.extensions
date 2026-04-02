@@ -62,7 +62,7 @@ var loggerFactory = host.Services.GetRequiredService<ILoggerFactory>();
 var clientFactory = host.Services.GetRequiredService<ITdClientFactory>();
 var appLogger = loggerFactory.CreateLogger("Example.OTelDemo");
 
-Console.WriteLine("=== TDLib + OpenTelemetry + Aspire Dashboard Demo ===");
+Console.WriteLine("=== TDLib + OpenTelemetry + Logging Demo ===");
 Console.WriteLine();
 Console.WriteLine("Tip: Run the Aspire Dashboard to view traces and metrics:");
 Console.WriteLine("  docker run --rm -it -d -p 18888:18888 -p 4317:18889 \\");
@@ -70,26 +70,28 @@ Console.WriteLine("    --name aspire-dashboard mcr.microsoft.com/dotnet/aspire-d
 Console.WriteLine("  Then open http://localhost:18888");
 Console.WriteLine();
 
-// 4. Create a client via the factory (fully instrumented with OTel)
-var client = clientFactory.GetOrCreateClient("demo-user");
+// 4. Create a client via the factory with BOTH OpenTelemetry instrumentation AND TDLib logging.
+//    The configure callback receives the native TdClient before OTel decoration is applied,
+//    allowing you to set up logging on the real client instance.
+var configure = TdLoggerExtensions.CreateTdLibLoggingAction(
+    loggerFactory,
+    TdLogLevel.Info,
+    td_set_log_message_callback,
+    out var loggingScope);
 
-// 5. Optionally set up TDLib native logging → .NET ILogger bridge
-if (client is TdClient tdClient)
+using (loggingScope)
 {
-    using var loggingScope = tdClient.UseTdLibLogging(
-        loggerFactory,
-        TdLogLevel.Info,
-        td_set_log_message_callback);
+    var client = clientFactory.GetOrCreateClient("demo-user", configure);
 
-    appLogger.LogInformation("TDLib client created with OpenTelemetry instrumentation");
+    appLogger.LogInformation("TDLib client created with OpenTelemetry instrumentation and logging");
 
-    // 6. Execute some operations — these will produce OTel traces and metrics
+    // 5. Execute some operations — these will produce OTel traces, metrics, AND routed logs
     try
     {
-        var version = tdClient.Execute(new TdApi.GetOption { Name = "version" });
+        var version = client.Execute(new TdApi.GetOption { Name = "version" });
         appLogger.LogInformation("TDLib version: {Version}", version);
 
-        var commitHash = tdClient.Execute(new TdApi.GetOption { Name = "commit_hash" });
+        var commitHash = client.Execute(new TdApi.GetOption { Name = "commit_hash" });
         appLogger.LogInformation("TDLib commit hash: {CommitHash}", commitHash);
 
         // Creating another client with the same ID returns the cached one

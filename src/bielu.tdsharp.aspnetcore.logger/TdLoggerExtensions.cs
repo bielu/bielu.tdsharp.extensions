@@ -183,6 +183,76 @@ public static class TdLoggerExtensions
     }
 
     /// <summary>
+    /// Creates an <see cref="Action{TdClient}"/> that configures TDLib logging when invoked.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This method returns an action suitable for passing to <see cref="bielu.tdsharp.abstractions.IClientProvider.Create(Action{TdClient})"/>
+    /// or <see cref="bielu.tdsharp.abstractions.ITdClientFactory.GetOrCreateClient(string, Action{TdClient})"/>.
+    /// When invoked, it sets up the complete logging pipeline on the underlying <see cref="TdClient"/>:
+    /// </para>
+    /// <list type="bullet">
+    /// <item>Creates a <see cref="LogStreamCallback"/> to handle log messages</item>
+    /// <item>Sets the TDLib verbosity level</item>
+    /// <item>Registers the native callback using your provided P/Invoke</item>
+    /// <item>Disables default TDLib logging to prevent duplicate output</item>
+    /// </list>
+    /// <para>
+    /// This is especially useful when the client is created through a provider that applies decorators
+    /// (such as OpenTelemetry instrumentation), where the returned <see cref="TdLib.TdApi.IClient"/> cannot
+    /// be cast to <see cref="TdClient"/>. The configure action is invoked on the native client
+    /// <em>before</em> any decoration is applied.
+    /// </para>
+    /// <para>
+    /// <b>Important:</b> The returned <see cref="IDisposable"/> must be stored and disposed to clean up
+    /// the native callback. It is returned via the <paramref name="loggingScope"/> output parameter.
+    /// </para>
+    /// </remarks>
+    /// <param name="loggerFactory">The ILoggerFactory to use for creating loggers.</param>
+    /// <param name="logLevel">The TDLib log level to set (controls which messages TDLib generates).</param>
+    /// <param name="setCallback">Your P/Invoke method for <c>td_set_log_message_callback</c>.</param>
+    /// <param name="loggingScope">
+    /// When the returned action is invoked, this will be set to an <see cref="IDisposable"/> that cleans up
+    /// the logging when disposed. Dispose it when you are done using the client.
+    /// </param>
+    /// <param name="disableDefaultLogging">Whether to disable default console/stderr logging (default: true).</param>
+    /// <returns>An <see cref="Action{TdClient}"/> that configures TDLib logging on the client.</returns>
+    /// <example>
+    /// <code>
+    /// [DllImport("tdjson", CallingConvention = CallingConvention.Cdecl)]
+    /// static extern void td_set_log_message_callback(int maxVerbosityLevel, TdLogMessageCallback? callback);
+    ///
+    /// IDisposable? loggingScope = null;
+    /// var configure = TdLoggerExtensions.CreateTdLibLoggingAction(
+    ///     loggerFactory, TdLogLevel.Info, td_set_log_message_callback, out loggingScope);
+    ///
+    /// var client = clientFactory.GetOrCreateClient("demo-user", configure);
+    /// // ... use client ...
+    /// loggingScope?.Dispose();
+    /// </code>
+    /// </example>
+    public static Action<TdClient> CreateTdLibLoggingAction(
+        ILoggerFactory loggerFactory,
+        TdLogLevel logLevel,
+        SetLogMessageCallbackDelegate setCallback,
+        out IDisposable? loggingScope,
+        bool disableDefaultLogging = true)
+    {
+        ArgumentNullException.ThrowIfNull(loggerFactory);
+        ArgumentNullException.ThrowIfNull(setCallback);
+
+        var holder = new LoggingScopeHolder();
+
+        Action<TdClient> action = client =>
+        {
+            holder.Scope = client.UseTdLibLogging(loggerFactory, logLevel, setCallback, disableDefaultLogging);
+        };
+
+        loggingScope = holder;
+        return action;
+    }
+
+    /// <summary>
     /// Maps TDLib verbosity level to Microsoft.Extensions.Logging LogLevel.
     /// </summary>
     /// <remarks>

@@ -20,6 +20,21 @@ public interface ITdClientFactory
     TdApi.IClient GetOrCreateClient(string identifier);
 
     /// <summary>
+    /// Gets an existing client or creates a new one for the given identifier,
+    /// invoking the <paramref name="configure"/> callback on the underlying <see cref="TdClient"/>
+    /// when a new client is created.
+    /// </summary>
+    /// <remarks>
+    /// The <paramref name="configure"/> callback is only invoked when a new client is created,
+    /// not when returning an existing cached client. Use this to configure the native
+    /// <see cref="TdClient"/> before any decoration is applied (e.g. setting up TDLib logging).
+    /// </remarks>
+    /// <param name="identifier">A unique identifier for the client (e.g. phone number).</param>
+    /// <param name="configure">An action invoked with the underlying <see cref="TdClient"/> when a new client is created.</param>
+    /// <returns>A configured <see cref="TdApi.IClient"/> instance.</returns>
+    TdApi.IClient GetOrCreateClient(string identifier, Action<TdClient> configure);
+
+    /// <summary>
     /// Closes the client for the given identifier without logging out (non-permanent).
     /// Sends <see cref="TdApi.Close"/> and disposes the client.
     /// The user session is preserved; the client can be recreated later and resume the session.

@@ -27,6 +27,15 @@ public class TdClientFactory(IClientProvider clientProvider) : ITdClientFactory
     }
 
     /// <inheritdoc />
+    public TdApi.IClient GetOrCreateClient(string identifier, Action<TdClient> configure)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(identifier);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        return _clients.GetOrAdd(identifier, _ => _clientProvider.Create(configure));
+    }
+
+    /// <inheritdoc />
     public async Task CloseClientAsync(string identifier)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(identifier);

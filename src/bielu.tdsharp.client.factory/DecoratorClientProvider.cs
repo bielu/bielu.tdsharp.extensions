@@ -47,6 +47,27 @@ public abstract class DecoratorClientProvider : IClientProvider
         return Decorate(client);
     }
 
+    /// <inheritdoc />
+    public TdApi.IClient Create(Action<TdClient> configure)
+    {
+        var client = _inner.Create(configure);
+        return Decorate(client);
+    }
+
+    /// <inheritdoc />
+    public TdApi.IClient Create(ITdLibBindings bindings, Action<TdClient> configure)
+    {
+        var client = _inner.Create(bindings, configure);
+        return Decorate(client);
+    }
+
+    /// <inheritdoc />
+    public TdApi.IClient Create(ITdLibBindings bindings, TimeSpan receiverTimeout, Action<TdClient> configure)
+    {
+        var client = _inner.Create(bindings, receiverTimeout, configure);
+        return Decorate(client);
+    }
+
     /// <summary>
     /// Applies decoration to the client created by the inner provider.
     /// </summary>
