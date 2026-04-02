@@ -42,24 +42,47 @@ public class OpenTelemetryClientProvider : IClientProvider
     /// <inheritdoc />
     public TdApi.IClient Create()
     {
-        return CreateInstrumented(_bindings, _receiverTimeout);
+        return CreateInstrumented(_bindings, _receiverTimeout, configure: null);
     }
 
     /// <inheritdoc />
     public TdApi.IClient Create(ITdLibBindings bindings)
     {
         ArgumentNullException.ThrowIfNull(bindings);
-        return CreateInstrumented(bindings, _receiverTimeout);
+        return CreateInstrumented(bindings, _receiverTimeout, configure: null);
     }
 
     /// <inheritdoc />
     public TdApi.IClient Create(ITdLibBindings bindings, TimeSpan receiverTimeout)
     {
         ArgumentNullException.ThrowIfNull(bindings);
-        return CreateInstrumented(bindings, receiverTimeout);
+        return CreateInstrumented(bindings, receiverTimeout, configure: null);
     }
 
-    private static TdApi.IClient CreateInstrumented(ITdLibBindings bindings, TimeSpan receiverTimeout)
+    /// <inheritdoc />
+    public TdApi.IClient Create(Action<TdClient> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+        return CreateInstrumented(_bindings, _receiverTimeout, configure);
+    }
+
+    /// <inheritdoc />
+    public TdApi.IClient Create(ITdLibBindings bindings, Action<TdClient> configure)
+    {
+        ArgumentNullException.ThrowIfNull(bindings);
+        ArgumentNullException.ThrowIfNull(configure);
+        return CreateInstrumented(bindings, _receiverTimeout, configure);
+    }
+
+    /// <inheritdoc />
+    public TdApi.IClient Create(ITdLibBindings bindings, TimeSpan receiverTimeout, Action<TdClient> configure)
+    {
+        ArgumentNullException.ThrowIfNull(bindings);
+        ArgumentNullException.ThrowIfNull(configure);
+        return CreateInstrumented(bindings, receiverTimeout, configure);
+    }
+
+    private static TdApi.IClient CreateInstrumented(ITdLibBindings bindings, TimeSpan receiverTimeout, Action<TdClient>? configure)
     {
         var clientId = $"client-{Interlocked.Increment(ref _clientCounter)}";
 
@@ -78,7 +101,10 @@ public class OpenTelemetryClientProvider : IClientProvider
         // 5. Create TdClient with instrumented JSON client + receiver
         var client = new TdClient(instrumentedJsonClient, instrumentedReceiver);
 
-        // 6. Wrap the client with OTel instrumentation
+        // 6. Invoke the configure callback on the native TdClient before decoration
+        configure?.Invoke(client);
+
+        // 7. Wrap the client with OTel instrumentation
         return new OpenTelemetryTdClientDecorator(client);
     }
 }

@@ -262,6 +262,107 @@ public class TdClientFactoryTests
     }
 }
 
+public class TdClientFactoryWithConfigureTests
+{
+    [Fact]
+    public void GetOrCreateClient_WithConfigure_CallsProviderCreateWithConfigure()
+    {
+        // Arrange
+        var mockProvider = Substitute.For<IClientProvider>();
+        var mockClient = Substitute.For<TdApi.IClient>();
+        Action<TdClient> configure = _ => { };
+        mockProvider.Create(configure).Returns(mockClient);
+
+        var factory = new TdClientFactory(mockProvider);
+
+        // Act
+        var client = factory.GetOrCreateClient("+1234567890", configure);
+
+        // Assert
+        client.Should().BeSameAs(mockClient);
+        mockProvider.Received(1).Create(configure);
+    }
+
+    [Fact]
+    public void GetOrCreateClient_WithConfigure_ReturnsCachedClientOnSecondCall()
+    {
+        // Arrange
+        var mockProvider = Substitute.For<IClientProvider>();
+        var mockClient = Substitute.For<TdApi.IClient>();
+        Action<TdClient> configure = _ => { };
+        mockProvider.Create(configure).Returns(mockClient);
+
+        var factory = new TdClientFactory(mockProvider);
+
+        // Act
+        var client1 = factory.GetOrCreateClient("+1234567890", configure);
+        var client2 = factory.GetOrCreateClient("+1234567890", configure);
+
+        // Assert
+        client1.Should().BeSameAs(client2);
+        mockProvider.Received(1).Create(configure);
+    }
+
+    [Fact]
+    public void GetOrCreateClient_WithConfigure_ThrowsOnNullIdentifier()
+    {
+        // Arrange
+        var mockProvider = Substitute.For<IClientProvider>();
+        var factory = new TdClientFactory(mockProvider);
+        Action<TdClient> configure = _ => { };
+
+        // Act & Assert
+        var act = () => factory.GetOrCreateClient(null!, configure);
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void GetOrCreateClient_WithConfigure_ThrowsOnWhitespaceIdentifier()
+    {
+        // Arrange
+        var mockProvider = Substitute.For<IClientProvider>();
+        var factory = new TdClientFactory(mockProvider);
+        Action<TdClient> configure = _ => { };
+
+        // Act & Assert
+        var act = () => factory.GetOrCreateClient("   ", configure);
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void GetOrCreateClient_WithConfigure_ThrowsOnNullConfigure()
+    {
+        // Arrange
+        var mockProvider = Substitute.For<IClientProvider>();
+        var factory = new TdClientFactory(mockProvider);
+
+        // Act & Assert
+        var act = () => factory.GetOrCreateClient("+1234567890", null!);
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void GetOrCreateClient_WithoutConfigure_ReturnsSameAsCachedWithConfigure()
+    {
+        // Arrange - create with configure first, then get without configure
+        var mockProvider = Substitute.For<IClientProvider>();
+        var mockClient = Substitute.For<TdApi.IClient>();
+        Action<TdClient> configure = _ => { };
+        mockProvider.Create(configure).Returns(mockClient);
+
+        var factory = new TdClientFactory(mockProvider);
+
+        // Act
+        var client1 = factory.GetOrCreateClient("+1234567890", configure);
+        var client2 = factory.GetOrCreateClient("+1234567890");
+
+        // Assert - should return the cached client, not create a new one
+        client1.Should().BeSameAs(client2);
+        mockProvider.Received(1).Create(configure);
+        mockProvider.DidNotReceive().Create();
+    }
+}
+
 public class DefaultClientProviderTests
 {
     [Fact]
@@ -371,5 +472,68 @@ public class DecoratorClientProviderTests
         // Act & Assert
         var act = () => new TestDecoratorProvider(null!, Substitute.For<TdApi.IClient>());
         act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void CreateWithConfigure_CallsInnerProviderAndDecorate()
+    {
+        // Arrange
+        var mockInner = Substitute.For<IClientProvider>();
+        var mockInnerClient = Substitute.For<TdApi.IClient>();
+        var mockDecoratedClient = Substitute.For<TdApi.IClient>();
+        Action<TdClient> configure = _ => { };
+        mockInner.Create(configure).Returns(mockInnerClient);
+
+        var provider = new TestDecoratorProvider(mockInner, mockDecoratedClient);
+
+        // Act
+        var result = provider.Create(configure);
+
+        // Assert
+        result.Should().BeSameAs(mockDecoratedClient);
+        mockInner.Received(1).Create(configure);
+    }
+
+    [Fact]
+    public void CreateWithBindingsAndConfigure_CallsInnerProviderAndDecorate()
+    {
+        // Arrange
+        var mockInner = Substitute.For<IClientProvider>();
+        var mockBindings = Substitute.For<TdLib.Bindings.ITdLibBindings>();
+        var mockInnerClient = Substitute.For<TdApi.IClient>();
+        var mockDecoratedClient = Substitute.For<TdApi.IClient>();
+        Action<TdClient> configure = _ => { };
+        mockInner.Create(mockBindings, configure).Returns(mockInnerClient);
+
+        var provider = new TestDecoratorProvider(mockInner, mockDecoratedClient);
+
+        // Act
+        var result = provider.Create(mockBindings, configure);
+
+        // Assert
+        result.Should().BeSameAs(mockDecoratedClient);
+        mockInner.Received(1).Create(mockBindings, configure);
+    }
+
+    [Fact]
+    public void CreateWithBindingsTimeoutAndConfigure_CallsInnerProviderAndDecorate()
+    {
+        // Arrange
+        var mockInner = Substitute.For<IClientProvider>();
+        var mockBindings = Substitute.For<TdLib.Bindings.ITdLibBindings>();
+        var timeout = TimeSpan.FromSeconds(1);
+        var mockInnerClient = Substitute.For<TdApi.IClient>();
+        var mockDecoratedClient = Substitute.For<TdApi.IClient>();
+        Action<TdClient> configure = _ => { };
+        mockInner.Create(mockBindings, timeout, configure).Returns(mockInnerClient);
+
+        var provider = new TestDecoratorProvider(mockInner, mockDecoratedClient);
+
+        // Act
+        var result = provider.Create(mockBindings, timeout, configure);
+
+        // Assert
+        result.Should().BeSameAs(mockDecoratedClient);
+        mockInner.Received(1).Create(mockBindings, timeout, configure);
     }
 }

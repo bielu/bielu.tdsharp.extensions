@@ -53,4 +53,33 @@ public class DefaultClientProvider : IClientProvider
         ArgumentNullException.ThrowIfNull(bindings);
         return new TdClient(new TdJsonClient(bindings), receiverTimeout);
     }
+
+    /// <inheritdoc />
+    public TdApi.IClient Create(Action<TdClient> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+        var client = new TdClient(_bindings);
+        configure(client);
+        return client;
+    }
+
+    /// <inheritdoc />
+    public TdApi.IClient Create(ITdLibBindings bindings, Action<TdClient> configure)
+    {
+        ArgumentNullException.ThrowIfNull(bindings);
+        ArgumentNullException.ThrowIfNull(configure);
+        var client = new TdClient(bindings);
+        configure(client);
+        return client;
+    }
+
+    /// <inheritdoc />
+    public TdApi.IClient Create(ITdLibBindings bindings, TimeSpan receiverTimeout, Action<TdClient> configure)
+    {
+        ArgumentNullException.ThrowIfNull(bindings);
+        ArgumentNullException.ThrowIfNull(configure);
+        var client = new TdClient(new TdJsonClient(bindings), receiverTimeout);
+        configure(client);
+        return client;
+    }
 }
