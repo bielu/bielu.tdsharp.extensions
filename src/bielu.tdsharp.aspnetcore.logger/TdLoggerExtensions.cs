@@ -241,26 +241,15 @@ public static class TdLoggerExtensions
         ArgumentNullException.ThrowIfNull(loggerFactory);
         ArgumentNullException.ThrowIfNull(setCallback);
 
-        IDisposable? scope = null;
-        loggingScope = null;
-
-        Action<TdClient> action = client =>
-        {
-            scope = client.UseTdLibLogging(loggerFactory, logLevel, setCallback, disableDefaultLogging);
-        };
-
-        // We need a way to expose the scope. We use a wrapper that delays until after invocation.
-        // The caller gets the scope via the out parameter after the action is invoked.
-        // To solve this, we use a holder pattern.
         var holder = new LoggingScopeHolder();
 
-        Action<TdClient> wrappedAction = client =>
+        Action<TdClient> action = client =>
         {
             holder.Scope = client.UseTdLibLogging(loggerFactory, logLevel, setCallback, disableDefaultLogging);
         };
 
         loggingScope = holder;
-        return wrappedAction;
+        return action;
     }
 
     /// <summary>
