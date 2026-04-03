@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/examples/">
+    <Project Path="examples/Example.AsyncApiDemo/Example.AsyncApiDemo.csproj" />
     <Project Path="examples/Example.LoggerDemo/Example.LoggerDemo.csproj" />
     <Project Path="examples/Example.OTelDemo/Example.OTelDemo.csproj" />
   </Folder>
@@ -8,6 +9,7 @@
   <Project Path="bielu.tdsharp.aspnetcore.logger/bielu.tdsharp.aspnetcore.logger.csproj" />
   <Project Path="bielu.tdsharp.client.factory/bielu.tdsharp.client.factory.csproj" />
   <Project Path="bielu.tdsharp.client.factory.tests/bielu.tdsharp.client.factory.tests.csproj" />
+  <Project Path="bielu.tdsharp.asyncapi/bielu.tdsharp.asyncapi.csproj" />
   <Project Path="bielu.tdsharp.opentelemetry/bielu.tdsharp.opentelemetry.csproj" />
   <Project Path="bielu.tdsharp.opentelemetry.tests/bielu.tdsharp.opentelemetry.tests.csproj" />
 </Solution>

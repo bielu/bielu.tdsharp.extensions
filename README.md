@@ -13,6 +13,7 @@ Extensions for [TdSharp](https://github.com/egramtel/tdsharp) (Telegram TDLib .N
 | `bielu.tdsharp.client.factory` | Client factory with DI support and decorator pattern |
 | `bielu.tdsharp.opentelemetry` | Full-stack OpenTelemetry instrumentation (traces + metrics) |
 | `bielu.tdsharp.aspnetcore.logger` | TDLib → .NET `ILogger` bridge |
+| `bielu.tdsharp.asyncapi` | AsyncAPI documentation for TDLib communication channels |
 
 ---
 
@@ -216,6 +217,58 @@ The logging integration is thread-safe. The callback registration should be done
 ### Why the P/Invoke Must Be in Your Application
 
 Due to how .NET marshals callback delegates to native code, the P/Invoke declaration must be in the consumer's assembly for callbacks to work correctly. This is a .NET runtime requirement. The extension method handles all the complexity — you just need to define the one-line P/Invoke and pass it in.
+
+---
+
+## bielu.tdsharp.asyncapi
+
+[AsyncAPI](https://www.asyncapi.com/) documentation for TDLib communication channels, powered by [Bielu.AspNetCore.AsyncApi](https://github.com/bielu/Bielu.AspNetCore.AsyncApi).
+
+Provides pre-built channel definitions that document the event-driven communication patterns between your application and Telegram via TDLib:
+
+### Documented Channels
+
+| Channel Class | Category | Description |
+|---|---|---|
+| `TelegramAuthChannel` | Auth | Authorization state machine — login flow, phone number, code, 2FA, logout |
+| `TelegramMessagingChannel` | Messages | Sending, receiving, editing, deleting, and forwarding messages |
+| `TelegramClientOperationsChannel` | Operations | Querying Telegram data — users, chats, options, files, search |
+| `TelegramUpdatesChannel` | Updates | Server-pushed events — user status, chat changes, connection state, file progress |
+
+### Usage
+
+Add the `bielu.tdsharp.asyncapi` package to your ASP.NET Core web application and configure `Bielu.AspNetCore.AsyncApi`:
+
+```csharp
+using Bielu.AspNetCore.AsyncApi.Extensions;
+using Bielu.AspNetCore.AsyncApi.UI;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Register AsyncAPI services — the TDLib channel classes are auto-discovered
+builder.Services.AddAsyncApi(options =>
+{
+    options.AddServer("tdlib", "localhost", "tdlib-json", server =>
+    {
+        server.Description = "TDLib native JSON client running in-process.";
+    });
+    options.WithDefaultContentType("application/json")
+        .WithDescription("TDLib Telegram communication patterns documentation.");
+});
+
+var app = builder.Build();
+
+app.MapAsyncApi();    // Serves the AsyncAPI JSON document
+app.MapAsyncApiUi();  // Serves the interactive AsyncAPI UI
+
+app.Run();
+```
+
+Access the documentation:
+- **JSON document**: `GET /asyncapi/v1.json`
+- **Interactive UI**: `GET /asyncapi`
+
+See [`examples/Example.AsyncApiDemo`](src/examples/Example.AsyncApiDemo/Program.cs) for a complete working example.
 
 ---
 
