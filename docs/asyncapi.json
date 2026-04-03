@@ -1,0 +1,5103 @@
+{
+  "asyncapi": "3.1.0",
+  "info": {
+    "title": "Example.AsyncApiDemo | v1",
+    "version": "1.0.0",
+    "description": "AsyncAPI documentation for TDLib (Telegram Database Library) communication patterns as exposed by the bielu.tdsharp.extensions libraries.\n\n## Architecture\n\nTDLib uses a layered architecture:\n1. **Application** sends requests via `TdApi.IClient` (Send / Execute / ExecuteAsync)\n2. **TdJsonClient** serializes requests to JSON and forwards them to the native TDLib library\n3. **Receiver** polls the native library for responses and updates in a background loop\n4. **Events** are fired back to the application (UpdateReceived, AuthorizationStateChanged)\n\n## Channel Categories\n\n- **Auth** — Authorization state machine (login flow)\n- **Messages** — Sending, receiving, editing, and deleting messages\n- **Operations** — Querying Telegram data (users, chats, options, files)\n- **Updates** — Server-pushed events (status changes, notifications, connection state)",
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "id": "urn:v1",
+  "servers": {
+    "tdlib": {
+      "host": "localhost",
+      "protocol": "tdlib-json",
+      "description": "TDLib native JSON client (tdjson). Communication happens via FFI calls to the native C++ library, not over a network socket. The 'server' represents the TDLib engine running in-process."
+    }
+  },
+  "channels": {
+    "telegramauthstate-changed": {
+      "address": "telegram/auth/state-changed",
+      "messages": {
+        "authorizationState": {
+          "$ref": "#/components/messages/authorizationState"
+        }
+      },
+      "description": "Authorization state change events. TDLib transitions through multiple states during authentication: WaitTdlibParameters → WaitPhoneNumber → WaitCode → WaitPassword → Ready. Applications must handle each state to complete login."
+    },
+    "telegramauthset-phone-number": {
+      "address": "telegram/auth/set-phone-number",
+      "messages": {
+        "setAuthenticationPhoneNumber": {
+          "$ref": "#/components/messages/setAuthenticationPhoneNumber"
+        }
+      },
+      "description": "Send the user's phone number to begin the authentication flow."
+    },
+    "telegramauthcheck-code": {
+      "address": "telegram/auth/check-code",
+      "messages": {
+        "checkAuthenticationCode": {
+          "$ref": "#/components/messages/checkAuthenticationCode"
+        }
+      },
+      "description": "Submit the authentication code received from Telegram."
+    },
+    "telegramauthcheck-password": {
+      "address": "telegram/auth/check-password",
+      "messages": {
+        "checkAuthenticationPassword": {
+          "$ref": "#/components/messages/checkAuthenticationPassword"
+        }
+      },
+      "description": "Submit the two-factor authentication password."
+    },
+    "telegramauthlog-out": {
+      "address": "telegram/auth/log-out",
+      "messages": {
+        "logOut": {
+          "$ref": "#/components/messages/logOut"
+        }
+      },
+      "description": "Log out from the Telegram session. The session is terminated permanently on the server."
+    },
+    "telegramoperationsget-me": {
+      "address": "telegram/operations/get-me",
+      "messages": {
+        "getMe": {
+          "$ref": "#/components/messages/getMe"
+        }
+      },
+      "description": "Retrieve the authenticated user's profile information."
+    },
+    "telegramoperationsget-chat": {
+      "address": "telegram/operations/get-chat",
+      "messages": {
+        "getChat": {
+          "$ref": "#/components/messages/getChat"
+        }
+      },
+      "description": "Retrieve detailed information about a specific chat."
+    },
+    "telegramoperationsget-chats": {
+      "address": "telegram/operations/get-chats",
+      "messages": {
+        "getChats": {
+          "$ref": "#/components/messages/getChats"
+        }
+      },
+      "description": "Retrieve a paginated list of the user's chats."
+    },
+    "telegramoperationsget-user": {
+      "address": "telegram/operations/get-user",
+      "messages": {
+        "getUser": {
+          "$ref": "#/components/messages/getUser"
+        }
+      },
+      "description": "Retrieve information about a Telegram user."
+    },
+    "telegramoperationsget-option": {
+      "address": "telegram/operations/get-option",
+      "messages": {
+        "getOption": {
+          "$ref": "#/components/messages/getOption"
+        }
+      },
+      "description": "Retrieve a TDLib configuration option value (e.g. 'version', 'commit_hash')."
+    },
+    "telegramoperationssearch-messages": {
+      "address": "telegram/operations/search-messages",
+      "messages": {
+        "searchChatMessages": {
+          "$ref": "#/components/messages/searchChatMessages"
+        }
+      },
+      "description": "Search for messages matching a query within a specific chat."
+    },
+    "telegramoperationsdownload-file": {
+      "address": "telegram/operations/download-file",
+      "messages": {
+        "downloadFile": {
+          "$ref": "#/components/messages/downloadFile"
+        }
+      },
+      "description": "Download a file from Telegram servers to the local filesystem."
+    },
+    "telegramoperationsclose": {
+      "address": "telegram/operations/close",
+      "messages": {
+        "close": {
+          "$ref": "#/components/messages/close"
+        }
+      },
+      "description": "Close the TDLib client instance. The session is preserved and can be resumed later."
+    },
+    "telegrammessagesnew": {
+      "address": "telegram/messages/new",
+      "messages": {
+        "updateNewMessage": {
+          "$ref": "#/components/messages/updateNewMessage"
+        }
+      },
+      "description": "New message events. Fired when a new message is received in any chat the authenticated user is a member of."
+    },
+    "telegrammessagescontent-changed": {
+      "address": "telegram/messages/content-changed",
+      "messages": {
+        "updateMessageContent": {
+          "$ref": "#/components/messages/updateMessageContent"
+        }
+      },
+      "description": "Message content change events. Fired when an existing message is edited."
+    },
+    "telegrammessagessend-succeeded": {
+      "address": "telegram/messages/send-succeeded",
+      "messages": {
+        "updateMessageSendSucceeded": {
+          "$ref": "#/components/messages/updateMessageSendSucceeded"
+        }
+      },
+      "description": "Message send success events. Fired when a pending message has been sent successfully."
+    },
+    "telegrammessagessend-failed": {
+      "address": "telegram/messages/send-failed",
+      "messages": {
+        "updateMessageSendFailed": {
+          "$ref": "#/components/messages/updateMessageSendFailed"
+        }
+      },
+      "description": "Message send failure events. Fired when a message could not be sent."
+    },
+    "telegrammessagessend": {
+      "address": "telegram/messages/send",
+      "messages": {
+        "sendMessage": {
+          "$ref": "#/components/messages/sendMessage"
+        }
+      },
+      "description": "Send a message to a Telegram chat. Supports text, photos, videos, documents, and more."
+    },
+    "telegrammessagesedit-text": {
+      "address": "telegram/messages/edit-text",
+      "messages": {
+        "editMessageText": {
+          "$ref": "#/components/messages/editMessageText"
+        }
+      },
+      "description": "Edit the text content of a previously sent message."
+    },
+    "telegrammessagesdelete": {
+      "address": "telegram/messages/delete",
+      "messages": {
+        "deleteMessages": {
+          "$ref": "#/components/messages/deleteMessages"
+        }
+      },
+      "description": "Delete messages from a chat."
+    },
+    "telegrammessagesforward": {
+      "address": "telegram/messages/forward",
+      "messages": {
+        "forwardMessages": {
+          "$ref": "#/components/messages/forwardMessages"
+        }
+      },
+      "description": "Forward messages from one chat to another."
+    },
+    "telegramupdatesuser-status": {
+      "address": "telegram/updates/user-status",
+      "messages": {
+        "updateUserStatus": {
+          "$ref": "#/components/messages/updateUserStatus"
+        }
+      },
+      "description": "User online status change events. Fired when a contact's online status changes."
+    },
+    "telegramupdatesuser": {
+      "address": "telegram/updates/user",
+      "messages": {
+        "updateUser": {
+          "$ref": "#/components/messages/updateUser"
+        }
+      },
+      "description": "User profile update events. Fired when a user's profile information changes."
+    },
+    "telegramupdateschat-title": {
+      "address": "telegram/updates/chat-title",
+      "messages": {
+        "updateChatTitle": {
+          "$ref": "#/components/messages/updateChatTitle"
+        }
+      },
+      "description": "Chat title change events."
+    },
+    "telegramupdateschat-last-message": {
+      "address": "telegram/updates/chat-last-message",
+      "messages": {
+        "updateChatLastMessage": {
+          "$ref": "#/components/messages/updateChatLastMessage"
+        }
+      },
+      "description": "Chat last message change events. Fired when the last message in a chat changes (new message received or previous last message deleted)."
+    },
+    "telegramupdateschat-read-inbox": {
+      "address": "telegram/updates/chat-read-inbox",
+      "messages": {
+        "updateChatReadInbox": {
+          "$ref": "#/components/messages/updateChatReadInbox"
+        }
+      },
+      "description": "Chat read inbox state events. Fired when messages are marked as read in a chat."
+    },
+    "telegramupdatesnotification-settings": {
+      "address": "telegram/updates/notification-settings",
+      "messages": {
+        "updateChatNotificationSettings": {
+          "$ref": "#/components/messages/updateChatNotificationSettings"
+        }
+      },
+      "description": "Chat notification settings change events."
+    },
+    "telegramupdatesfile": {
+      "address": "telegram/updates/file",
+      "messages": {
+        "updateFile": {
+          "$ref": "#/components/messages/updateFile"
+        }
+      },
+      "description": "File download/upload progress events. Fired during file transfer operations."
+    },
+    "telegramupdatesconnection-state": {
+      "address": "telegram/updates/connection-state",
+      "messages": {
+        "updateConnectionState": {
+          "$ref": "#/components/messages/updateConnectionState"
+        }
+      },
+      "description": "Connection state change events. Fired when the connection to Telegram servers changes."
+    },
+    "telegramupdatesoption": {
+      "address": "telegram/updates/option",
+      "messages": {
+        "updateOption": {
+          "$ref": "#/components/messages/updateOption"
+        }
+      },
+      "description": "TDLib option value change events. Fired when an internal configuration option is updated."
+    }
+  },
+  "operations": {
+    "TelegramAuthChannel_OnAuthorizationStateChanged_Subscribe": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/telegramauthstate-changed"
+      },
+      "title": "TelegramAuthChannel_OnAuthorizationStateChanged_Subscribe",
+      "summary": "Subscribe to authorization state transitions",
+      "description": "Receive notifications when the TDLib client's authorization state changes. The payload is a TdApi.AuthorizationState subclass indicating the new state. States include: AuthorizationStateWaitTdlibParameters, AuthorizationStateWaitPhoneNumber, AuthorizationStateWaitCode, AuthorizationStateWaitPassword, AuthorizationStateReady, AuthorizationStateLoggingOut, AuthorizationStateClosing, AuthorizationStateClosed.",
+      "tags": [
+        {
+          "name": "Auth"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegramauthstate-changed/messages/authorizationState"
+        }
+      ]
+    },
+    "TelegramAuthChannel_SetAuthenticationPhoneNumber_Publish": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/telegramauthset-phone-number"
+      },
+      "title": "TelegramAuthChannel_SetAuthenticationPhoneNumber_Publish",
+      "summary": "Provide phone number for authentication",
+      "description": "Sends a phone number to TDLib to initiate the login process. After sending, the authorization state will transition to WaitCode.",
+      "tags": [
+        {
+          "name": "Auth"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegramauthset-phone-number/messages/setAuthenticationPhoneNumber"
+        }
+      ]
+    },
+    "TelegramAuthChannel_CheckAuthenticationCode_Publish": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/telegramauthcheck-code"
+      },
+      "title": "TelegramAuthChannel_CheckAuthenticationCode_Publish",
+      "summary": "Submit authentication code",
+      "description": "Sends the authentication code to TDLib. If the code is correct and no 2FA password is set, the authorization state transitions to Ready.",
+      "tags": [
+        {
+          "name": "Auth"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegramauthcheck-code/messages/checkAuthenticationCode"
+        }
+      ]
+    },
+    "TelegramAuthChannel_CheckAuthenticationPassword_Publish": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/telegramauthcheck-password"
+      },
+      "title": "TelegramAuthChannel_CheckAuthenticationPassword_Publish",
+      "summary": "Submit 2FA password",
+      "description": "Sends the two-factor authentication password to TDLib. Required when the account has a cloud password set.",
+      "tags": [
+        {
+          "name": "Auth"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegramauthcheck-password/messages/checkAuthenticationPassword"
+        }
+      ]
+    },
+    "TelegramAuthChannel_LogOut_Publish": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/telegramauthlog-out"
+      },
+      "title": "TelegramAuthChannel_LogOut_Publish",
+      "summary": "Log out from Telegram",
+      "description": "Sends a logout request to TDLib. The authorization state transitions to LoggingOut → Closing → Closed. The session is permanently invalidated.",
+      "tags": [
+        {
+          "name": "Auth"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegramauthlog-out/messages/logOut"
+        }
+      ]
+    },
+    "TelegramClientOperationsChannel_GetMe_Publish": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/telegramoperationsget-me"
+      },
+      "title": "TelegramClientOperationsChannel_GetMe_Publish",
+      "summary": "Get current user",
+      "description": "Returns a TdApi.User object with the authenticated user's profile (ID, name, username, phone number, profile photo, etc.).",
+      "tags": [
+        {
+          "name": "Operations"
+        },
+        {
+          "name": "User"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegramoperationsget-me/messages/getMe"
+        }
+      ]
+    },
+    "TelegramClientOperationsChannel_GetChat_Publish": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/telegramoperationsget-chat"
+      },
+      "title": "TelegramClientOperationsChannel_GetChat_Publish",
+      "summary": "Get chat information",
+      "description": "Returns a TdApi.Chat object with the chat's title, type (private/group/channel), photo, last message, unread counts, and other metadata.",
+      "tags": [
+        {
+          "name": "Operations"
+        },
+        {
+          "name": "Chat"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegramoperationsget-chat/messages/getChat"
+        }
+      ]
+    },
+    "TelegramClientOperationsChannel_GetChats_Publish": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/telegramoperationsget-chats"
+      },
+      "title": "TelegramClientOperationsChannel_GetChats_Publish",
+      "summary": "Get chat list",
+      "description": "Returns an ordered list of chat IDs. Use with a ChatList (Main, Archive, Folder) and a limit to paginate through the user's conversations.",
+      "tags": [
+        {
+          "name": "Operations"
+        },
+        {
+          "name": "Chat"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegramoperationsget-chats/messages/getChats"
+        }
+      ]
+    },
+    "TelegramClientOperationsChannel_GetUser_Publish": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/telegramoperationsget-user"
+      },
+      "title": "TelegramClientOperationsChannel_GetUser_Publish",
+      "summary": "Get user information",
+      "description": "Returns a TdApi.User object for the specified user ID, including name, username, phone number, status, and profile photo.",
+      "tags": [
+        {
+          "name": "Operations"
+        },
+        {
+          "name": "User"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegramoperationsget-user/messages/getUser"
+        }
+      ]
+    },
+    "TelegramClientOperationsChannel_GetOption_Publish": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/telegramoperationsget-option"
+      },
+      "title": "TelegramClientOperationsChannel_GetOption_Publish",
+      "summary": "Get TDLib option",
+      "description": "Returns the value of a TDLib internal option. Common options include 'version' (TDLib version), 'commit_hash', 'my_id' (current user ID), and various configuration flags.",
+      "tags": [
+        {
+          "name": "Operations"
+        },
+        {
+          "name": "Config"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegramoperationsget-option/messages/getOption"
+        }
+      ]
+    },
+    "TelegramClientOperationsChannel_SearchChatMessages_Publish": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/telegramoperationssearch-messages"
+      },
+      "title": "TelegramClientOperationsChannel_SearchChatMessages_Publish",
+      "summary": "Search chat messages",
+      "description": "Searches for messages in a chat by text query, sender, message type, or date range. Returns a paginated list of matching messages.",
+      "tags": [
+        {
+          "name": "Operations"
+        },
+        {
+          "name": "Messages"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegramoperationssearch-messages/messages/searchChatMessages"
+        }
+      ]
+    },
+    "TelegramClientOperationsChannel_DownloadFile_Publish": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/telegramoperationsdownload-file"
+      },
+      "title": "TelegramClientOperationsChannel_DownloadFile_Publish",
+      "summary": "Download a file",
+      "description": "Initiates a file download. The file will be downloaded to the TDLib files directory. Progress can be tracked via UpdateFile events.",
+      "tags": [
+        {
+          "name": "Operations"
+        },
+        {
+          "name": "Files"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegramoperationsdownload-file/messages/downloadFile"
+        }
+      ]
+    },
+    "TelegramClientOperationsChannel_Close_Publish": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/telegramoperationsclose"
+      },
+      "title": "TelegramClientOperationsChannel_Close_Publish",
+      "summary": "Close TDLib client",
+      "description": "Closes the TDLib client gracefully. The user session is preserved on disk — recreating the client will resume the session without re-authentication. The authorization state will transition to Closing → Closed.",
+      "tags": [
+        {
+          "name": "Operations"
+        },
+        {
+          "name": "Lifecycle"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegramoperationsclose/messages/close"
+        }
+      ]
+    },
+    "TelegramMessagingChannel_OnNewMessage_Subscribe": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/telegrammessagesnew"
+      },
+      "title": "TelegramMessagingChannel_OnNewMessage_Subscribe",
+      "summary": "Subscribe to new messages",
+      "description": "Receive notifications when new messages arrive. The payload contains the full TdApi.Message object including sender, chat ID, content, and metadata.",
+      "tags": [
+        {
+          "name": "Messages"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegrammessagesnew/messages/updateNewMessage"
+        }
+      ]
+    },
+    "TelegramMessagingChannel_OnMessageContentChanged_Subscribe": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/telegrammessagescontent-changed"
+      },
+      "title": "TelegramMessagingChannel_OnMessageContentChanged_Subscribe",
+      "summary": "Subscribe to message edits",
+      "description": "Receive notifications when the content of a message changes (e.g. text edit, media replacement). Provides the chat ID, message ID, and new content.",
+      "tags": [
+        {
+          "name": "Messages"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegrammessagescontent-changed/messages/updateMessageContent"
+        }
+      ]
+    },
+    "TelegramMessagingChannel_OnMessageSendSucceeded_Subscribe": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/telegrammessagessend-succeeded"
+      },
+      "title": "TelegramMessagingChannel_OnMessageSendSucceeded_Subscribe",
+      "summary": "Subscribe to message send confirmations",
+      "description": "Receive a notification when a message previously sent by the client has been delivered to the server. Contains the old temporary message ID and the new permanent one.",
+      "tags": [
+        {
+          "name": "Messages"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegrammessagessend-succeeded/messages/updateMessageSendSucceeded"
+        }
+      ]
+    },
+    "TelegramMessagingChannel_OnMessageSendFailed_Subscribe": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/telegrammessagessend-failed"
+      },
+      "title": "TelegramMessagingChannel_OnMessageSendFailed_Subscribe",
+      "summary": "Subscribe to message send failures",
+      "description": "Receive a notification when a message failed to send. Contains the error code and message describing the failure reason.",
+      "tags": [
+        {
+          "name": "Messages"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegrammessagessend-failed/messages/updateMessageSendFailed"
+        }
+      ]
+    },
+    "TelegramMessagingChannel_SendMessage_Publish": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/telegrammessagessend"
+      },
+      "title": "TelegramMessagingChannel_SendMessage_Publish",
+      "summary": "Send a message",
+      "description": "Sends a message to the specified chat. The InputMessageContent determines the type of message (text, photo, video, etc.). Returns a Message object with a temporary ID that will be updated via UpdateMessageSendSucceeded.",
+      "tags": [
+        {
+          "name": "Messages"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegrammessagessend/messages/sendMessage"
+        }
+      ]
+    },
+    "TelegramMessagingChannel_EditMessageText_Publish": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/telegrammessagesedit-text"
+      },
+      "title": "TelegramMessagingChannel_EditMessageText_Publish",
+      "summary": "Edit message text",
+      "description": "Edits the text of a message. Can only edit messages sent by the current user in non-channel chats, or any message in a channel the user administers.",
+      "tags": [
+        {
+          "name": "Messages"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegrammessagesedit-text/messages/editMessageText"
+        }
+      ]
+    },
+    "TelegramMessagingChannel_DeleteMessages_Publish": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/telegrammessagesdelete"
+      },
+      "title": "TelegramMessagingChannel_DeleteMessages_Publish",
+      "summary": "Delete messages",
+      "description": "Deletes one or more messages from a chat. The Revoke parameter controls whether messages are deleted for all users or only the current user.",
+      "tags": [
+        {
+          "name": "Messages"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegrammessagesdelete/messages/deleteMessages"
+        }
+      ]
+    },
+    "TelegramMessagingChannel_ForwardMessages_Publish": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/telegrammessagesforward"
+      },
+      "title": "TelegramMessagingChannel_ForwardMessages_Publish",
+      "summary": "Forward messages",
+      "description": "Forwards one or more messages to a target chat. Options include sending as a copy and removing captions.",
+      "tags": [
+        {
+          "name": "Messages"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegrammessagesforward/messages/forwardMessages"
+        }
+      ]
+    },
+    "TelegramUpdatesChannel_OnUserStatusUpdate_Subscribe": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/telegramupdatesuser-status"
+      },
+      "title": "TelegramUpdatesChannel_OnUserStatusUpdate_Subscribe",
+      "summary": "Subscribe to user status changes",
+      "description": "Receive notifications when a user's online status changes (online, offline with last-seen timestamp, recently, last week, last month).",
+      "tags": [
+        {
+          "name": "Updates"
+        },
+        {
+          "name": "User"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegramupdatesuser-status/messages/updateUserStatus"
+        }
+      ]
+    },
+    "TelegramUpdatesChannel_OnUserUpdate_Subscribe": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/telegramupdatesuser"
+      },
+      "title": "TelegramUpdatesChannel_OnUserUpdate_Subscribe",
+      "summary": "Subscribe to user profile updates",
+      "description": "Receive notifications when a user's profile changes (name, username, profile photo, bio, etc.).",
+      "tags": [
+        {
+          "name": "Updates"
+        },
+        {
+          "name": "User"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegramupdatesuser/messages/updateUser"
+        }
+      ]
+    },
+    "TelegramUpdatesChannel_OnChatTitleUpdate_Subscribe": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/telegramupdateschat-title"
+      },
+      "title": "TelegramUpdatesChannel_OnChatTitleUpdate_Subscribe",
+      "summary": "Subscribe to chat title changes",
+      "description": "Receive notifications when a chat's title is updated.",
+      "tags": [
+        {
+          "name": "Updates"
+        },
+        {
+          "name": "Chat"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegramupdateschat-title/messages/updateChatTitle"
+        }
+      ]
+    },
+    "TelegramUpdatesChannel_OnChatLastMessageUpdate_Subscribe": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/telegramupdateschat-last-message"
+      },
+      "title": "TelegramUpdatesChannel_OnChatLastMessageUpdate_Subscribe",
+      "summary": "Subscribe to chat last message updates",
+      "description": "Receive notifications when the most recent message in a chat changes. This is typically used to update chat list UI elements.",
+      "tags": [
+        {
+          "name": "Updates"
+        },
+        {
+          "name": "Chat"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegramupdateschat-last-message/messages/updateChatLastMessage"
+        }
+      ]
+    },
+    "TelegramUpdatesChannel_OnChatReadInboxUpdate_Subscribe": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/telegramupdateschat-read-inbox"
+      },
+      "title": "TelegramUpdatesChannel_OnChatReadInboxUpdate_Subscribe",
+      "summary": "Subscribe to chat read state changes",
+      "description": "Receive notifications when the read pointer advances in a chat (e.g. the user read messages in another client). Contains the new last-read incoming message ID and unread count.",
+      "tags": [
+        {
+          "name": "Updates"
+        },
+        {
+          "name": "Chat"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegramupdateschat-read-inbox/messages/updateChatReadInbox"
+        }
+      ]
+    },
+    "TelegramUpdatesChannel_OnChatNotificationSettingsUpdate_Subscribe": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/telegramupdatesnotification-settings"
+      },
+      "title": "TelegramUpdatesChannel_OnChatNotificationSettingsUpdate_Subscribe",
+      "summary": "Subscribe to notification setting changes",
+      "description": "Receive notifications when a chat's notification settings are modified (mute duration, sound, show preview, etc.).",
+      "tags": [
+        {
+          "name": "Updates"
+        },
+        {
+          "name": "Chat"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegramupdatesnotification-settings/messages/updateChatNotificationSettings"
+        }
+      ]
+    },
+    "TelegramUpdatesChannel_OnFileUpdate_Subscribe": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/telegramupdatesfile"
+      },
+      "title": "TelegramUpdatesChannel_OnFileUpdate_Subscribe",
+      "summary": "Subscribe to file transfer progress",
+      "description": "Receive progress notifications during file downloads or uploads. Contains the file ID, expected size, downloaded size, and local/remote file info.",
+      "tags": [
+        {
+          "name": "Updates"
+        },
+        {
+          "name": "Files"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegramupdatesfile/messages/updateFile"
+        }
+      ]
+    },
+    "TelegramUpdatesChannel_OnConnectionStateUpdate_Subscribe": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/telegramupdatesconnection-state"
+      },
+      "title": "TelegramUpdatesChannel_OnConnectionStateUpdate_Subscribe",
+      "summary": "Subscribe to connection state changes",
+      "description": "Receive notifications when the network connection state changes: WaitingForNetwork, ConnectingToProxy, Connecting, Updating, Ready.",
+      "tags": [
+        {
+          "name": "Updates"
+        },
+        {
+          "name": "Connection"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegramupdatesconnection-state/messages/updateConnectionState"
+        }
+      ]
+    },
+    "TelegramUpdatesChannel_OnOptionUpdate_Subscribe": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/telegramupdatesoption"
+      },
+      "title": "TelegramUpdatesChannel_OnOptionUpdate_Subscribe",
+      "summary": "Subscribe to option changes",
+      "description": "Receive notifications when a TDLib internal option value changes. Options include 'my_id', 'unix_time', 'online', and many others.",
+      "tags": [
+        {
+          "name": "Updates"
+        },
+        {
+          "name": "Config"
+        }
+      ],
+      "messages": [
+        {
+          "$ref": "#/channels/telegramupdatesoption/messages/updateOption"
+        }
+      ]
+    }
+  },
+  "components": {
+    "schemas": {
+      "authorizationState": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          }
+        }
+      },
+      "checkAuthenticationCode": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          }
+        }
+      },
+      "checkAuthenticationPassword": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        }
+      },
+      "close": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          }
+        }
+      },
+      "deleteMessages": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          },
+          "chatId": {
+            "type": "string",
+            "format": "int64"
+          },
+          "messageIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "int64"
+            }
+          },
+          "revoke": {
+            "type": "boolean"
+          }
+        }
+      },
+      "downloadFile": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          },
+          "fileId": {
+            "type": "string",
+            "format": "int32"
+          },
+          "priority": {
+            "type": "string",
+            "format": "int32"
+          },
+          "offset": {
+            "type": "string",
+            "format": "int64"
+          },
+          "limit": {
+            "type": "string",
+            "format": "int64"
+          },
+          "synchronous": {
+            "type": "boolean"
+          }
+        }
+      },
+      "editMessageText": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          },
+          "chatId": {
+            "type": "string",
+            "format": "int64"
+          },
+          "messageId": {
+            "type": "string",
+            "format": "int64"
+          },
+          "replyMarkup": {
+            "type": "object",
+            "properties": {
+              "dataType": {
+                "type": "string"
+              },
+              "extra": {
+                "type": "string"
+              }
+            }
+          },
+          "inputMessageContent": {
+            "type": "object",
+            "properties": {
+              "dataType": {
+                "type": "string"
+              },
+              "extra": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "forwardMessages": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          },
+          "chatId": {
+            "type": "string",
+            "format": "int64"
+          },
+          "topicId": {
+            "type": "object",
+            "properties": {
+              "dataType": {
+                "type": "string"
+              },
+              "extra": {
+                "type": "string"
+              }
+            }
+          },
+          "fromChatId": {
+            "type": "string",
+            "format": "int64"
+          },
+          "messageIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "int64"
+            }
+          },
+          "options": {
+            "type": "object",
+            "properties": {
+              "dataType": {
+                "type": "string"
+              },
+              "extra": {
+                "type": "string"
+              },
+              "suggestedPostInfo": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "sendDate": {
+                    "type": "string",
+                    "format": "int32"
+                  }
+                }
+              },
+              "disableNotification": {
+                "type": "boolean"
+              },
+              "fromBackground": {
+                "type": "boolean"
+              },
+              "protectContent": {
+                "type": "boolean"
+              },
+              "allowPaidBroadcast": {
+                "type": "boolean"
+              },
+              "paidMessageStarCount": {
+                "type": "string",
+                "format": "int64"
+              },
+              "updateOrderOfInstalledStickerSets": {
+                "type": "boolean"
+              },
+              "schedulingState": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "effectId": {
+                "type": "string",
+                "format": "int64"
+              },
+              "sendingId": {
+                "type": "string",
+                "format": "int32"
+              },
+              "onlyPreview": {
+                "type": "boolean"
+              }
+            }
+          },
+          "sendCopy": {
+            "type": "boolean"
+          },
+          "removeCaption": {
+            "type": "boolean"
+          }
+        }
+      },
+      "getChat": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          },
+          "chatId": {
+            "type": "string",
+            "format": "int64"
+          }
+        }
+      },
+      "getChats": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          },
+          "chatList": {
+            "type": "object",
+            "properties": {
+              "dataType": {
+                "type": "string"
+              },
+              "extra": {
+                "type": "string"
+              }
+            }
+          },
+          "limit": {
+            "type": "string",
+            "format": "int32"
+          }
+        }
+      },
+      "getMe": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          }
+        }
+      },
+      "getOption": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "getUser": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string",
+            "format": "int64"
+          }
+        }
+      },
+      "logOut": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          }
+        }
+      },
+      "searchChatMessages": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          },
+          "chatId": {
+            "type": "string",
+            "format": "int64"
+          },
+          "topicId": {
+            "type": "object",
+            "properties": {
+              "dataType": {
+                "type": "string"
+              },
+              "extra": {
+                "type": "string"
+              }
+            }
+          },
+          "query": {
+            "type": "string"
+          },
+          "senderId": {
+            "type": "object",
+            "properties": {
+              "dataType": {
+                "type": "string"
+              },
+              "extra": {
+                "type": "string"
+              }
+            }
+          },
+          "fromMessageId": {
+            "type": "string",
+            "format": "int64"
+          },
+          "offset": {
+            "type": "string",
+            "format": "int32"
+          },
+          "limit": {
+            "type": "string",
+            "format": "int32"
+          },
+          "filter": {
+            "type": "object",
+            "properties": {
+              "dataType": {
+                "type": "string"
+              },
+              "extra": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "sendMessage": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          },
+          "chatId": {
+            "type": "string",
+            "format": "int64"
+          },
+          "topicId": {
+            "type": "object",
+            "properties": {
+              "dataType": {
+                "type": "string"
+              },
+              "extra": {
+                "type": "string"
+              }
+            }
+          },
+          "replyTo": {
+            "type": "object",
+            "properties": {
+              "dataType": {
+                "type": "string"
+              },
+              "extra": {
+                "type": "string"
+              }
+            }
+          },
+          "options": {
+            "type": "object",
+            "properties": {
+              "dataType": {
+                "type": "string"
+              },
+              "extra": {
+                "type": "string"
+              },
+              "suggestedPostInfo": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "sendDate": {
+                    "type": "string",
+                    "format": "int32"
+                  }
+                }
+              },
+              "disableNotification": {
+                "type": "boolean"
+              },
+              "fromBackground": {
+                "type": "boolean"
+              },
+              "protectContent": {
+                "type": "boolean"
+              },
+              "allowPaidBroadcast": {
+                "type": "boolean"
+              },
+              "paidMessageStarCount": {
+                "type": "string",
+                "format": "int64"
+              },
+              "updateOrderOfInstalledStickerSets": {
+                "type": "boolean"
+              },
+              "schedulingState": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "effectId": {
+                "type": "string",
+                "format": "int64"
+              },
+              "sendingId": {
+                "type": "string",
+                "format": "int32"
+              },
+              "onlyPreview": {
+                "type": "boolean"
+              }
+            }
+          },
+          "replyMarkup": {
+            "type": "object",
+            "properties": {
+              "dataType": {
+                "type": "string"
+              },
+              "extra": {
+                "type": "string"
+              }
+            }
+          },
+          "inputMessageContent": {
+            "type": "object",
+            "properties": {
+              "dataType": {
+                "type": "string"
+              },
+              "extra": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "setAuthenticationPhoneNumber": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          },
+          "phoneNumber": {
+            "type": "string"
+          },
+          "settings": {
+            "type": "object",
+            "properties": {
+              "dataType": {
+                "type": "string"
+              },
+              "extra": {
+                "type": "string"
+              },
+              "allowFlashCall": {
+                "type": "boolean"
+              },
+              "allowMissedCall": {
+                "type": "boolean"
+              },
+              "isCurrentPhoneNumber": {
+                "type": "boolean"
+              },
+              "hasUnknownPhoneNumber": {
+                "type": "boolean"
+              },
+              "allowSmsRetrieverApi": {
+                "type": "boolean"
+              },
+              "firebaseAuthenticationSettings": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "authenticationTokens": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "updateChatLastMessage": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          },
+          "chatId": {
+            "type": "string",
+            "format": "int64"
+          },
+          "lastMessage": {
+            "type": "object",
+            "properties": {
+              "dataType": {
+                "type": "string"
+              },
+              "extra": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string",
+                "format": "int64"
+              },
+              "senderId": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "chatId": {
+                "type": "string",
+                "format": "int64"
+              },
+              "sendingState": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "schedulingState": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "isOutgoing": {
+                "type": "boolean"
+              },
+              "isPinned": {
+                "type": "boolean"
+              },
+              "isFromOffline": {
+                "type": "boolean"
+              },
+              "canBeSaved": {
+                "type": "boolean"
+              },
+              "hasTimestampedMedia": {
+                "type": "boolean"
+              },
+              "isChannelPost": {
+                "type": "boolean"
+              },
+              "isPaidStarSuggestedPost": {
+                "type": "boolean"
+              },
+              "isPaidTonSuggestedPost": {
+                "type": "boolean"
+              },
+              "containsUnreadMention": {
+                "type": "boolean"
+              },
+              "date": {
+                "type": "string",
+                "format": "int32"
+              },
+              "editDate": {
+                "type": "string",
+                "format": "int32"
+              },
+              "forwardInfo": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "origin": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "date": {
+                    "type": "string",
+                    "format": "int32"
+                  },
+                  "source": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      },
+                      "chatId": {
+                        "type": "string",
+                        "format": "int64"
+                      },
+                      "messageId": {
+                        "type": "string",
+                        "format": "int64"
+                      },
+                      "senderId": {
+                        "type": "object",
+                        "properties": {
+                          "dataType": {
+                            "type": "string"
+                          },
+                          "extra": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "senderName": {
+                        "type": "string"
+                      },
+                      "date": {
+                        "type": "string",
+                        "format": "int32"
+                      },
+                      "isOutgoing": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "publicServiceAnnouncementType": {
+                    "type": "string"
+                  }
+                }
+              },
+              "importInfo": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "senderName": {
+                    "type": "string"
+                  },
+                  "date": {
+                    "type": "string",
+                    "format": "int32"
+                  }
+                }
+              },
+              "interactionInfo": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "viewCount": {
+                    "type": "string",
+                    "format": "int32"
+                  },
+                  "forwardCount": {
+                    "type": "string",
+                    "format": "int32"
+                  },
+                  "replyInfo": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      },
+                      "replyCount": {
+                        "type": "string",
+                        "format": "int32"
+                      },
+                      "recentReplierIds": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "dataType": {
+                              "type": "string"
+                            },
+                            "extra": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
+                      "lastReadInboxMessageId": {
+                        "type": "string",
+                        "format": "int64"
+                      },
+                      "lastReadOutboxMessageId": {
+                        "type": "string",
+                        "format": "int64"
+                      },
+                      "lastMessageId": {
+                        "type": "string",
+                        "format": "int64"
+                      }
+                    }
+                  },
+                  "reactions": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      },
+                      "reactions": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "dataType": {
+                              "type": "string"
+                            },
+                            "extra": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "object",
+                              "properties": {
+                                "dataType": {
+                                  "type": "string"
+                                },
+                                "extra": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "totalCount": {
+                              "type": "string",
+                              "format": "int32"
+                            },
+                            "isChosen": {
+                              "type": "boolean"
+                            },
+                            "usedSenderId": {
+                              "type": "object",
+                              "properties": {
+                                "dataType": {
+                                  "type": "string"
+                                },
+                                "extra": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "recentSenderIds": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "dataType": {
+                                    "type": "string"
+                                  },
+                                  "extra": {
+                                    "type": "string"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "areTags": {
+                        "type": "boolean"
+                      },
+                      "paidReactors": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "dataType": {
+                              "type": "string"
+                            },
+                            "extra": {
+                              "type": "string"
+                            },
+                            "senderId": {
+                              "type": "object",
+                              "properties": {
+                                "dataType": {
+                                  "type": "string"
+                                },
+                                "extra": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "starCount": {
+                              "type": "string",
+                              "format": "int64"
+                            },
+                            "isTop": {
+                              "type": "boolean"
+                            },
+                            "isMe": {
+                              "type": "boolean"
+                            },
+                            "isAnonymous": {
+                              "type": "boolean"
+                            }
+                          }
+                        }
+                      },
+                      "canGetAddedReactions": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              },
+              "unreadReactions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "dataType": {
+                      "type": "string"
+                    },
+                    "extra": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "object",
+                      "properties": {
+                        "dataType": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "senderId": {
+                      "type": "object",
+                      "properties": {
+                        "dataType": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "isBig": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              },
+              "factCheck": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "text": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "entities": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "dataType": {
+                              "type": "string"
+                            },
+                            "extra": {
+                              "type": "string"
+                            },
+                            "offset": {
+                              "type": "string",
+                              "format": "int32"
+                            },
+                            "length": {
+                              "type": "string",
+                              "format": "int32"
+                            },
+                            "type": {
+                              "type": "object",
+                              "properties": {
+                                "dataType": {
+                                  "type": "string"
+                                },
+                                "extra": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "countryCode": {
+                    "type": "string"
+                  }
+                }
+              },
+              "suggestedPostInfo": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "sendDate": {
+                    "type": "string",
+                    "format": "int32"
+                  },
+                  "state": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "canBeApproved": {
+                    "type": "boolean"
+                  },
+                  "canBeDeclined": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "replyTo": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "topicId": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "selfDestructType": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "selfDestructIn": {
+                "type": "string",
+                "format": "double"
+              },
+              "autoDeleteIn": {
+                "type": "string",
+                "format": "double"
+              },
+              "viaBotUserId": {
+                "type": "string",
+                "format": "int64"
+              },
+              "senderBusinessBotUserId": {
+                "type": "string",
+                "format": "int64"
+              },
+              "senderBoostCount": {
+                "type": "string",
+                "format": "int32"
+              },
+              "senderTag": {
+                "type": "string"
+              },
+              "paidMessageStarCount": {
+                "type": "string",
+                "format": "int64"
+              },
+              "authorSignature": {
+                "type": "string"
+              },
+              "mediaAlbumId": {
+                "type": "string",
+                "format": "int64"
+              },
+              "effectId": {
+                "type": "string",
+                "format": "int64"
+              },
+              "restrictionInfo": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "restrictionReason": {
+                    "type": "string"
+                  },
+                  "hasSensitiveContent": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "summaryLanguageCode": {
+                "type": "string"
+              },
+              "content": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "replyMarkup": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "positions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "dataType": {
+                  "type": "string"
+                },
+                "extra": {
+                  "type": "string"
+                },
+                "list": {
+                  "type": "object",
+                  "properties": {
+                    "dataType": {
+                      "type": "string"
+                    },
+                    "extra": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "order": {
+                  "type": "string",
+                  "format": "int64"
+                },
+                "isPinned": {
+                  "type": "boolean"
+                },
+                "source": {
+                  "type": "object",
+                  "properties": {
+                    "dataType": {
+                      "type": "string"
+                    },
+                    "extra": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "updateChatNotificationSettings": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          },
+          "chatId": {
+            "type": "string",
+            "format": "int64"
+          },
+          "notificationSettings": {
+            "type": "object",
+            "properties": {
+              "dataType": {
+                "type": "string"
+              },
+              "extra": {
+                "type": "string"
+              },
+              "useDefaultMuteFor": {
+                "type": "boolean"
+              },
+              "muteFor": {
+                "type": "string",
+                "format": "int32"
+              },
+              "useDefaultSound": {
+                "type": "boolean"
+              },
+              "soundId": {
+                "type": "string",
+                "format": "int64"
+              },
+              "useDefaultShowPreview": {
+                "type": "boolean"
+              },
+              "showPreview": {
+                "type": "boolean"
+              },
+              "useDefaultMuteStories": {
+                "type": "boolean"
+              },
+              "muteStories": {
+                "type": "boolean"
+              },
+              "useDefaultStorySound": {
+                "type": "boolean"
+              },
+              "storySoundId": {
+                "type": "string",
+                "format": "int64"
+              },
+              "useDefaultShowStoryPoster": {
+                "type": "boolean"
+              },
+              "showStoryPoster": {
+                "type": "boolean"
+              },
+              "useDefaultDisablePinnedMessageNotifications": {
+                "type": "boolean"
+              },
+              "disablePinnedMessageNotifications": {
+                "type": "boolean"
+              },
+              "useDefaultDisableMentionNotifications": {
+                "type": "boolean"
+              },
+              "disableMentionNotifications": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      },
+      "updateChatReadInbox": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          },
+          "chatId": {
+            "type": "string",
+            "format": "int64"
+          },
+          "lastReadInboxMessageId": {
+            "type": "string",
+            "format": "int64"
+          },
+          "unreadCount": {
+            "type": "string",
+            "format": "int32"
+          }
+        }
+      },
+      "updateChatTitle": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          },
+          "chatId": {
+            "type": "string",
+            "format": "int64"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "updateConnectionState": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          },
+          "state": {
+            "type": "object",
+            "properties": {
+              "dataType": {
+                "type": "string"
+              },
+              "extra": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "updateFile": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          },
+          "file": {
+            "type": "object",
+            "properties": {
+              "dataType": {
+                "type": "string"
+              },
+              "extra": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string",
+                "format": "int32"
+              },
+              "size": {
+                "type": "string",
+                "format": "int64"
+              },
+              "expectedSize": {
+                "type": "string",
+                "format": "int64"
+              },
+              "local": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "path": {
+                    "type": "string"
+                  },
+                  "canBeDownloaded": {
+                    "type": "boolean"
+                  },
+                  "canBeDeleted": {
+                    "type": "boolean"
+                  },
+                  "isDownloadingActive": {
+                    "type": "boolean"
+                  },
+                  "isDownloadingCompleted": {
+                    "type": "boolean"
+                  },
+                  "downloadOffset": {
+                    "type": "string",
+                    "format": "int64"
+                  },
+                  "downloadedPrefixSize": {
+                    "type": "string",
+                    "format": "int64"
+                  },
+                  "downloadedSize": {
+                    "type": "string",
+                    "format": "int64"
+                  }
+                }
+              },
+              "remote": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "uniqueId": {
+                    "type": "string"
+                  },
+                  "isUploadingActive": {
+                    "type": "boolean"
+                  },
+                  "isUploadingCompleted": {
+                    "type": "boolean"
+                  },
+                  "uploadedSize": {
+                    "type": "string",
+                    "format": "int64"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "updateMessageContent": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          },
+          "chatId": {
+            "type": "string",
+            "format": "int64"
+          },
+          "messageId": {
+            "type": "string",
+            "format": "int64"
+          },
+          "newContent": {
+            "type": "object",
+            "properties": {
+              "dataType": {
+                "type": "string"
+              },
+              "extra": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "updateMessageSendFailed": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          },
+          "message": {
+            "type": "object",
+            "properties": {
+              "dataType": {
+                "type": "string"
+              },
+              "extra": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string",
+                "format": "int64"
+              },
+              "senderId": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "chatId": {
+                "type": "string",
+                "format": "int64"
+              },
+              "sendingState": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "schedulingState": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "isOutgoing": {
+                "type": "boolean"
+              },
+              "isPinned": {
+                "type": "boolean"
+              },
+              "isFromOffline": {
+                "type": "boolean"
+              },
+              "canBeSaved": {
+                "type": "boolean"
+              },
+              "hasTimestampedMedia": {
+                "type": "boolean"
+              },
+              "isChannelPost": {
+                "type": "boolean"
+              },
+              "isPaidStarSuggestedPost": {
+                "type": "boolean"
+              },
+              "isPaidTonSuggestedPost": {
+                "type": "boolean"
+              },
+              "containsUnreadMention": {
+                "type": "boolean"
+              },
+              "date": {
+                "type": "string",
+                "format": "int32"
+              },
+              "editDate": {
+                "type": "string",
+                "format": "int32"
+              },
+              "forwardInfo": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "origin": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "date": {
+                    "type": "string",
+                    "format": "int32"
+                  },
+                  "source": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      },
+                      "chatId": {
+                        "type": "string",
+                        "format": "int64"
+                      },
+                      "messageId": {
+                        "type": "string",
+                        "format": "int64"
+                      },
+                      "senderId": {
+                        "type": "object",
+                        "properties": {
+                          "dataType": {
+                            "type": "string"
+                          },
+                          "extra": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "senderName": {
+                        "type": "string"
+                      },
+                      "date": {
+                        "type": "string",
+                        "format": "int32"
+                      },
+                      "isOutgoing": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "publicServiceAnnouncementType": {
+                    "type": "string"
+                  }
+                }
+              },
+              "importInfo": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "senderName": {
+                    "type": "string"
+                  },
+                  "date": {
+                    "type": "string",
+                    "format": "int32"
+                  }
+                }
+              },
+              "interactionInfo": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "viewCount": {
+                    "type": "string",
+                    "format": "int32"
+                  },
+                  "forwardCount": {
+                    "type": "string",
+                    "format": "int32"
+                  },
+                  "replyInfo": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      },
+                      "replyCount": {
+                        "type": "string",
+                        "format": "int32"
+                      },
+                      "recentReplierIds": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "dataType": {
+                              "type": "string"
+                            },
+                            "extra": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
+                      "lastReadInboxMessageId": {
+                        "type": "string",
+                        "format": "int64"
+                      },
+                      "lastReadOutboxMessageId": {
+                        "type": "string",
+                        "format": "int64"
+                      },
+                      "lastMessageId": {
+                        "type": "string",
+                        "format": "int64"
+                      }
+                    }
+                  },
+                  "reactions": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      },
+                      "reactions": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "dataType": {
+                              "type": "string"
+                            },
+                            "extra": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "object",
+                              "properties": {
+                                "dataType": {
+                                  "type": "string"
+                                },
+                                "extra": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "totalCount": {
+                              "type": "string",
+                              "format": "int32"
+                            },
+                            "isChosen": {
+                              "type": "boolean"
+                            },
+                            "usedSenderId": {
+                              "type": "object",
+                              "properties": {
+                                "dataType": {
+                                  "type": "string"
+                                },
+                                "extra": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "recentSenderIds": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "dataType": {
+                                    "type": "string"
+                                  },
+                                  "extra": {
+                                    "type": "string"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "areTags": {
+                        "type": "boolean"
+                      },
+                      "paidReactors": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "dataType": {
+                              "type": "string"
+                            },
+                            "extra": {
+                              "type": "string"
+                            },
+                            "senderId": {
+                              "type": "object",
+                              "properties": {
+                                "dataType": {
+                                  "type": "string"
+                                },
+                                "extra": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "starCount": {
+                              "type": "string",
+                              "format": "int64"
+                            },
+                            "isTop": {
+                              "type": "boolean"
+                            },
+                            "isMe": {
+                              "type": "boolean"
+                            },
+                            "isAnonymous": {
+                              "type": "boolean"
+                            }
+                          }
+                        }
+                      },
+                      "canGetAddedReactions": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              },
+              "unreadReactions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "dataType": {
+                      "type": "string"
+                    },
+                    "extra": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "object",
+                      "properties": {
+                        "dataType": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "senderId": {
+                      "type": "object",
+                      "properties": {
+                        "dataType": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "isBig": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              },
+              "factCheck": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "text": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "entities": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "dataType": {
+                              "type": "string"
+                            },
+                            "extra": {
+                              "type": "string"
+                            },
+                            "offset": {
+                              "type": "string",
+                              "format": "int32"
+                            },
+                            "length": {
+                              "type": "string",
+                              "format": "int32"
+                            },
+                            "type": {
+                              "type": "object",
+                              "properties": {
+                                "dataType": {
+                                  "type": "string"
+                                },
+                                "extra": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "countryCode": {
+                    "type": "string"
+                  }
+                }
+              },
+              "suggestedPostInfo": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "sendDate": {
+                    "type": "string",
+                    "format": "int32"
+                  },
+                  "state": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "canBeApproved": {
+                    "type": "boolean"
+                  },
+                  "canBeDeclined": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "replyTo": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "topicId": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "selfDestructType": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "selfDestructIn": {
+                "type": "string",
+                "format": "double"
+              },
+              "autoDeleteIn": {
+                "type": "string",
+                "format": "double"
+              },
+              "viaBotUserId": {
+                "type": "string",
+                "format": "int64"
+              },
+              "senderBusinessBotUserId": {
+                "type": "string",
+                "format": "int64"
+              },
+              "senderBoostCount": {
+                "type": "string",
+                "format": "int32"
+              },
+              "senderTag": {
+                "type": "string"
+              },
+              "paidMessageStarCount": {
+                "type": "string",
+                "format": "int64"
+              },
+              "authorSignature": {
+                "type": "string"
+              },
+              "mediaAlbumId": {
+                "type": "string",
+                "format": "int64"
+              },
+              "effectId": {
+                "type": "string",
+                "format": "int64"
+              },
+              "restrictionInfo": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "restrictionReason": {
+                    "type": "string"
+                  },
+                  "hasSensitiveContent": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "summaryLanguageCode": {
+                "type": "string"
+              },
+              "content": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "replyMarkup": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "oldMessageId": {
+            "type": "string",
+            "format": "int64"
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "dataType": {
+                "type": "string"
+              },
+              "extra": {
+                "type": "string"
+              },
+              "code": {
+                "type": "string",
+                "format": "int32"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "updateMessageSendSucceeded": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          },
+          "message": {
+            "type": "object",
+            "properties": {
+              "dataType": {
+                "type": "string"
+              },
+              "extra": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string",
+                "format": "int64"
+              },
+              "senderId": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "chatId": {
+                "type": "string",
+                "format": "int64"
+              },
+              "sendingState": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "schedulingState": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "isOutgoing": {
+                "type": "boolean"
+              },
+              "isPinned": {
+                "type": "boolean"
+              },
+              "isFromOffline": {
+                "type": "boolean"
+              },
+              "canBeSaved": {
+                "type": "boolean"
+              },
+              "hasTimestampedMedia": {
+                "type": "boolean"
+              },
+              "isChannelPost": {
+                "type": "boolean"
+              },
+              "isPaidStarSuggestedPost": {
+                "type": "boolean"
+              },
+              "isPaidTonSuggestedPost": {
+                "type": "boolean"
+              },
+              "containsUnreadMention": {
+                "type": "boolean"
+              },
+              "date": {
+                "type": "string",
+                "format": "int32"
+              },
+              "editDate": {
+                "type": "string",
+                "format": "int32"
+              },
+              "forwardInfo": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "origin": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "date": {
+                    "type": "string",
+                    "format": "int32"
+                  },
+                  "source": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      },
+                      "chatId": {
+                        "type": "string",
+                        "format": "int64"
+                      },
+                      "messageId": {
+                        "type": "string",
+                        "format": "int64"
+                      },
+                      "senderId": {
+                        "type": "object",
+                        "properties": {
+                          "dataType": {
+                            "type": "string"
+                          },
+                          "extra": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "senderName": {
+                        "type": "string"
+                      },
+                      "date": {
+                        "type": "string",
+                        "format": "int32"
+                      },
+                      "isOutgoing": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "publicServiceAnnouncementType": {
+                    "type": "string"
+                  }
+                }
+              },
+              "importInfo": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "senderName": {
+                    "type": "string"
+                  },
+                  "date": {
+                    "type": "string",
+                    "format": "int32"
+                  }
+                }
+              },
+              "interactionInfo": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "viewCount": {
+                    "type": "string",
+                    "format": "int32"
+                  },
+                  "forwardCount": {
+                    "type": "string",
+                    "format": "int32"
+                  },
+                  "replyInfo": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      },
+                      "replyCount": {
+                        "type": "string",
+                        "format": "int32"
+                      },
+                      "recentReplierIds": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "dataType": {
+                              "type": "string"
+                            },
+                            "extra": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
+                      "lastReadInboxMessageId": {
+                        "type": "string",
+                        "format": "int64"
+                      },
+                      "lastReadOutboxMessageId": {
+                        "type": "string",
+                        "format": "int64"
+                      },
+                      "lastMessageId": {
+                        "type": "string",
+                        "format": "int64"
+                      }
+                    }
+                  },
+                  "reactions": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      },
+                      "reactions": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "dataType": {
+                              "type": "string"
+                            },
+                            "extra": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "object",
+                              "properties": {
+                                "dataType": {
+                                  "type": "string"
+                                },
+                                "extra": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "totalCount": {
+                              "type": "string",
+                              "format": "int32"
+                            },
+                            "isChosen": {
+                              "type": "boolean"
+                            },
+                            "usedSenderId": {
+                              "type": "object",
+                              "properties": {
+                                "dataType": {
+                                  "type": "string"
+                                },
+                                "extra": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "recentSenderIds": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "dataType": {
+                                    "type": "string"
+                                  },
+                                  "extra": {
+                                    "type": "string"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "areTags": {
+                        "type": "boolean"
+                      },
+                      "paidReactors": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "dataType": {
+                              "type": "string"
+                            },
+                            "extra": {
+                              "type": "string"
+                            },
+                            "senderId": {
+                              "type": "object",
+                              "properties": {
+                                "dataType": {
+                                  "type": "string"
+                                },
+                                "extra": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "starCount": {
+                              "type": "string",
+                              "format": "int64"
+                            },
+                            "isTop": {
+                              "type": "boolean"
+                            },
+                            "isMe": {
+                              "type": "boolean"
+                            },
+                            "isAnonymous": {
+                              "type": "boolean"
+                            }
+                          }
+                        }
+                      },
+                      "canGetAddedReactions": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              },
+              "unreadReactions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "dataType": {
+                      "type": "string"
+                    },
+                    "extra": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "object",
+                      "properties": {
+                        "dataType": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "senderId": {
+                      "type": "object",
+                      "properties": {
+                        "dataType": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "isBig": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              },
+              "factCheck": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "text": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "entities": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "dataType": {
+                              "type": "string"
+                            },
+                            "extra": {
+                              "type": "string"
+                            },
+                            "offset": {
+                              "type": "string",
+                              "format": "int32"
+                            },
+                            "length": {
+                              "type": "string",
+                              "format": "int32"
+                            },
+                            "type": {
+                              "type": "object",
+                              "properties": {
+                                "dataType": {
+                                  "type": "string"
+                                },
+                                "extra": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "countryCode": {
+                    "type": "string"
+                  }
+                }
+              },
+              "suggestedPostInfo": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "sendDate": {
+                    "type": "string",
+                    "format": "int32"
+                  },
+                  "state": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "canBeApproved": {
+                    "type": "boolean"
+                  },
+                  "canBeDeclined": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "replyTo": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "topicId": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "selfDestructType": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "selfDestructIn": {
+                "type": "string",
+                "format": "double"
+              },
+              "autoDeleteIn": {
+                "type": "string",
+                "format": "double"
+              },
+              "viaBotUserId": {
+                "type": "string",
+                "format": "int64"
+              },
+              "senderBusinessBotUserId": {
+                "type": "string",
+                "format": "int64"
+              },
+              "senderBoostCount": {
+                "type": "string",
+                "format": "int32"
+              },
+              "senderTag": {
+                "type": "string"
+              },
+              "paidMessageStarCount": {
+                "type": "string",
+                "format": "int64"
+              },
+              "authorSignature": {
+                "type": "string"
+              },
+              "mediaAlbumId": {
+                "type": "string",
+                "format": "int64"
+              },
+              "effectId": {
+                "type": "string",
+                "format": "int64"
+              },
+              "restrictionInfo": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "restrictionReason": {
+                    "type": "string"
+                  },
+                  "hasSensitiveContent": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "summaryLanguageCode": {
+                "type": "string"
+              },
+              "content": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "replyMarkup": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "oldMessageId": {
+            "type": "string",
+            "format": "int64"
+          }
+        }
+      },
+      "updateNewMessage": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          },
+          "message": {
+            "type": "object",
+            "properties": {
+              "dataType": {
+                "type": "string"
+              },
+              "extra": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string",
+                "format": "int64"
+              },
+              "senderId": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "chatId": {
+                "type": "string",
+                "format": "int64"
+              },
+              "sendingState": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "schedulingState": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "isOutgoing": {
+                "type": "boolean"
+              },
+              "isPinned": {
+                "type": "boolean"
+              },
+              "isFromOffline": {
+                "type": "boolean"
+              },
+              "canBeSaved": {
+                "type": "boolean"
+              },
+              "hasTimestampedMedia": {
+                "type": "boolean"
+              },
+              "isChannelPost": {
+                "type": "boolean"
+              },
+              "isPaidStarSuggestedPost": {
+                "type": "boolean"
+              },
+              "isPaidTonSuggestedPost": {
+                "type": "boolean"
+              },
+              "containsUnreadMention": {
+                "type": "boolean"
+              },
+              "date": {
+                "type": "string",
+                "format": "int32"
+              },
+              "editDate": {
+                "type": "string",
+                "format": "int32"
+              },
+              "forwardInfo": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "origin": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "date": {
+                    "type": "string",
+                    "format": "int32"
+                  },
+                  "source": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      },
+                      "chatId": {
+                        "type": "string",
+                        "format": "int64"
+                      },
+                      "messageId": {
+                        "type": "string",
+                        "format": "int64"
+                      },
+                      "senderId": {
+                        "type": "object",
+                        "properties": {
+                          "dataType": {
+                            "type": "string"
+                          },
+                          "extra": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "senderName": {
+                        "type": "string"
+                      },
+                      "date": {
+                        "type": "string",
+                        "format": "int32"
+                      },
+                      "isOutgoing": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "publicServiceAnnouncementType": {
+                    "type": "string"
+                  }
+                }
+              },
+              "importInfo": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "senderName": {
+                    "type": "string"
+                  },
+                  "date": {
+                    "type": "string",
+                    "format": "int32"
+                  }
+                }
+              },
+              "interactionInfo": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "viewCount": {
+                    "type": "string",
+                    "format": "int32"
+                  },
+                  "forwardCount": {
+                    "type": "string",
+                    "format": "int32"
+                  },
+                  "replyInfo": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      },
+                      "replyCount": {
+                        "type": "string",
+                        "format": "int32"
+                      },
+                      "recentReplierIds": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "dataType": {
+                              "type": "string"
+                            },
+                            "extra": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
+                      "lastReadInboxMessageId": {
+                        "type": "string",
+                        "format": "int64"
+                      },
+                      "lastReadOutboxMessageId": {
+                        "type": "string",
+                        "format": "int64"
+                      },
+                      "lastMessageId": {
+                        "type": "string",
+                        "format": "int64"
+                      }
+                    }
+                  },
+                  "reactions": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      },
+                      "reactions": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "dataType": {
+                              "type": "string"
+                            },
+                            "extra": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "object",
+                              "properties": {
+                                "dataType": {
+                                  "type": "string"
+                                },
+                                "extra": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "totalCount": {
+                              "type": "string",
+                              "format": "int32"
+                            },
+                            "isChosen": {
+                              "type": "boolean"
+                            },
+                            "usedSenderId": {
+                              "type": "object",
+                              "properties": {
+                                "dataType": {
+                                  "type": "string"
+                                },
+                                "extra": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "recentSenderIds": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "dataType": {
+                                    "type": "string"
+                                  },
+                                  "extra": {
+                                    "type": "string"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "areTags": {
+                        "type": "boolean"
+                      },
+                      "paidReactors": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "dataType": {
+                              "type": "string"
+                            },
+                            "extra": {
+                              "type": "string"
+                            },
+                            "senderId": {
+                              "type": "object",
+                              "properties": {
+                                "dataType": {
+                                  "type": "string"
+                                },
+                                "extra": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "starCount": {
+                              "type": "string",
+                              "format": "int64"
+                            },
+                            "isTop": {
+                              "type": "boolean"
+                            },
+                            "isMe": {
+                              "type": "boolean"
+                            },
+                            "isAnonymous": {
+                              "type": "boolean"
+                            }
+                          }
+                        }
+                      },
+                      "canGetAddedReactions": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              },
+              "unreadReactions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "dataType": {
+                      "type": "string"
+                    },
+                    "extra": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "object",
+                      "properties": {
+                        "dataType": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "senderId": {
+                      "type": "object",
+                      "properties": {
+                        "dataType": {
+                          "type": "string"
+                        },
+                        "extra": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "isBig": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              },
+              "factCheck": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "text": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "entities": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "dataType": {
+                              "type": "string"
+                            },
+                            "extra": {
+                              "type": "string"
+                            },
+                            "offset": {
+                              "type": "string",
+                              "format": "int32"
+                            },
+                            "length": {
+                              "type": "string",
+                              "format": "int32"
+                            },
+                            "type": {
+                              "type": "object",
+                              "properties": {
+                                "dataType": {
+                                  "type": "string"
+                                },
+                                "extra": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "countryCode": {
+                    "type": "string"
+                  }
+                }
+              },
+              "suggestedPostInfo": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "sendDate": {
+                    "type": "string",
+                    "format": "int32"
+                  },
+                  "state": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "canBeApproved": {
+                    "type": "boolean"
+                  },
+                  "canBeDeclined": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "replyTo": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "topicId": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "selfDestructType": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "selfDestructIn": {
+                "type": "string",
+                "format": "double"
+              },
+              "autoDeleteIn": {
+                "type": "string",
+                "format": "double"
+              },
+              "viaBotUserId": {
+                "type": "string",
+                "format": "int64"
+              },
+              "senderBusinessBotUserId": {
+                "type": "string",
+                "format": "int64"
+              },
+              "senderBoostCount": {
+                "type": "string",
+                "format": "int32"
+              },
+              "senderTag": {
+                "type": "string"
+              },
+              "paidMessageStarCount": {
+                "type": "string",
+                "format": "int64"
+              },
+              "authorSignature": {
+                "type": "string"
+              },
+              "mediaAlbumId": {
+                "type": "string",
+                "format": "int64"
+              },
+              "effectId": {
+                "type": "string",
+                "format": "int64"
+              },
+              "restrictionInfo": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "restrictionReason": {
+                    "type": "string"
+                  },
+                  "hasSensitiveContent": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "summaryLanguageCode": {
+                "type": "string"
+              },
+              "content": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "replyMarkup": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "updateOption": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "type": "object",
+            "properties": {
+              "dataType": {
+                "type": "string"
+              },
+              "extra": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "updateUser": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          },
+          "user": {
+            "type": "object",
+            "properties": {
+              "dataType": {
+                "type": "string"
+              },
+              "extra": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string",
+                "format": "int64"
+              },
+              "firstName": {
+                "type": "string"
+              },
+              "lastName": {
+                "type": "string"
+              },
+              "usernames": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "activeUsernames": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "disabledUsernames": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "editableUsername": {
+                    "type": "string"
+                  },
+                  "collectibleUsernames": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "phoneNumber": {
+                "type": "string"
+              },
+              "status": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "profilePhoto": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string",
+                    "format": "int64"
+                  },
+                  "small": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      },
+                      "id": {
+                        "type": "string",
+                        "format": "int32"
+                      },
+                      "size": {
+                        "type": "string",
+                        "format": "int64"
+                      },
+                      "expectedSize": {
+                        "type": "string",
+                        "format": "int64"
+                      },
+                      "local": {
+                        "type": "object",
+                        "properties": {
+                          "dataType": {
+                            "type": "string"
+                          },
+                          "extra": {
+                            "type": "string"
+                          },
+                          "path": {
+                            "type": "string"
+                          },
+                          "canBeDownloaded": {
+                            "type": "boolean"
+                          },
+                          "canBeDeleted": {
+                            "type": "boolean"
+                          },
+                          "isDownloadingActive": {
+                            "type": "boolean"
+                          },
+                          "isDownloadingCompleted": {
+                            "type": "boolean"
+                          },
+                          "downloadOffset": {
+                            "type": "string",
+                            "format": "int64"
+                          },
+                          "downloadedPrefixSize": {
+                            "type": "string",
+                            "format": "int64"
+                          },
+                          "downloadedSize": {
+                            "type": "string",
+                            "format": "int64"
+                          }
+                        }
+                      },
+                      "remote": {
+                        "type": "object",
+                        "properties": {
+                          "dataType": {
+                            "type": "string"
+                          },
+                          "extra": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "uniqueId": {
+                            "type": "string"
+                          },
+                          "isUploadingActive": {
+                            "type": "boolean"
+                          },
+                          "isUploadingCompleted": {
+                            "type": "boolean"
+                          },
+                          "uploadedSize": {
+                            "type": "string",
+                            "format": "int64"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "big": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      },
+                      "id": {
+                        "type": "string",
+                        "format": "int32"
+                      },
+                      "size": {
+                        "type": "string",
+                        "format": "int64"
+                      },
+                      "expectedSize": {
+                        "type": "string",
+                        "format": "int64"
+                      },
+                      "local": {
+                        "type": "object",
+                        "properties": {
+                          "dataType": {
+                            "type": "string"
+                          },
+                          "extra": {
+                            "type": "string"
+                          },
+                          "path": {
+                            "type": "string"
+                          },
+                          "canBeDownloaded": {
+                            "type": "boolean"
+                          },
+                          "canBeDeleted": {
+                            "type": "boolean"
+                          },
+                          "isDownloadingActive": {
+                            "type": "boolean"
+                          },
+                          "isDownloadingCompleted": {
+                            "type": "boolean"
+                          },
+                          "downloadOffset": {
+                            "type": "string",
+                            "format": "int64"
+                          },
+                          "downloadedPrefixSize": {
+                            "type": "string",
+                            "format": "int64"
+                          },
+                          "downloadedSize": {
+                            "type": "string",
+                            "format": "int64"
+                          }
+                        }
+                      },
+                      "remote": {
+                        "type": "object",
+                        "properties": {
+                          "dataType": {
+                            "type": "string"
+                          },
+                          "extra": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "uniqueId": {
+                            "type": "string"
+                          },
+                          "isUploadingActive": {
+                            "type": "boolean"
+                          },
+                          "isUploadingCompleted": {
+                            "type": "boolean"
+                          },
+                          "uploadedSize": {
+                            "type": "string",
+                            "format": "int64"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "minithumbnail": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      },
+                      "width": {
+                        "type": "string",
+                        "format": "int32"
+                      },
+                      "height": {
+                        "type": "string",
+                        "format": "int32"
+                      },
+                      "data": {
+                        "type": "string",
+                        "format": "byte"
+                      }
+                    }
+                  },
+                  "hasAnimation": {
+                    "type": "boolean"
+                  },
+                  "isPersonal": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "accentColorId": {
+                "type": "string",
+                "format": "int32"
+              },
+              "backgroundCustomEmojiId": {
+                "type": "string",
+                "format": "int64"
+              },
+              "upgradedGiftColors": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string",
+                    "format": "int64"
+                  },
+                  "modelCustomEmojiId": {
+                    "type": "string",
+                    "format": "int64"
+                  },
+                  "symbolCustomEmojiId": {
+                    "type": "string",
+                    "format": "int64"
+                  },
+                  "lightThemeAccentColor": {
+                    "type": "string",
+                    "format": "int32"
+                  },
+                  "lightThemeColors": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "int32"
+                    }
+                  },
+                  "darkThemeAccentColor": {
+                    "type": "string",
+                    "format": "int32"
+                  },
+                  "darkThemeColors": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "int32"
+                    }
+                  }
+                }
+              },
+              "profileAccentColorId": {
+                "type": "string",
+                "format": "int32"
+              },
+              "profileBackgroundCustomEmojiId": {
+                "type": "string",
+                "format": "int64"
+              },
+              "emojiStatus": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "object",
+                    "properties": {
+                      "dataType": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "expirationDate": {
+                    "type": "string",
+                    "format": "int32"
+                  }
+                }
+              },
+              "isContact": {
+                "type": "boolean"
+              },
+              "isMutualContact": {
+                "type": "boolean"
+              },
+              "isCloseFriend": {
+                "type": "boolean"
+              },
+              "verificationStatus": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "isVerified": {
+                    "type": "boolean"
+                  },
+                  "isScam": {
+                    "type": "boolean"
+                  },
+                  "isFake": {
+                    "type": "boolean"
+                  },
+                  "botVerificationIconCustomEmojiId": {
+                    "type": "string",
+                    "format": "int64"
+                  }
+                }
+              },
+              "isPremium": {
+                "type": "boolean"
+              },
+              "isSupport": {
+                "type": "boolean"
+              },
+              "restrictionInfo": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  },
+                  "restrictionReason": {
+                    "type": "string"
+                  },
+                  "hasSensitiveContent": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "activeStoryState": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "restrictsNewChats": {
+                "type": "boolean"
+              },
+              "paidMessageStarCount": {
+                "type": "string",
+                "format": "int64"
+              },
+              "haveAccess": {
+                "type": "boolean"
+              },
+              "type": {
+                "type": "object",
+                "properties": {
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "extra": {
+                    "type": "string"
+                  }
+                }
+              },
+              "languageCode": {
+                "type": "string"
+              },
+              "addedToAttachmentMenu": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      },
+      "updateUserStatus": {
+        "type": "object",
+        "properties": {
+          "dataType": {
+            "type": "string"
+          },
+          "extra": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string",
+            "format": "int64"
+          },
+          "status": {
+            "type": "object",
+            "properties": {
+              "dataType": {
+                "type": "string"
+              },
+              "extra": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "messages": {
+      "authorizationState": {
+        "payload": {
+          "$ref": "#/components/schemas/authorizationState"
+        },
+        "name": "authorizationState",
+        "title": "authorizationState"
+      },
+      "setAuthenticationPhoneNumber": {
+        "payload": {
+          "$ref": "#/components/schemas/setAuthenticationPhoneNumber"
+        },
+        "name": "setAuthenticationPhoneNumber",
+        "title": "setAuthenticationPhoneNumber"
+      },
+      "checkAuthenticationCode": {
+        "payload": {
+          "$ref": "#/components/schemas/checkAuthenticationCode"
+        },
+        "name": "checkAuthenticationCode",
+        "title": "checkAuthenticationCode"
+      },
+      "checkAuthenticationPassword": {
+        "payload": {
+          "$ref": "#/components/schemas/checkAuthenticationPassword"
+        },
+        "name": "checkAuthenticationPassword",
+        "title": "checkAuthenticationPassword"
+      },
+      "logOut": {
+        "payload": {
+          "$ref": "#/components/schemas/logOut"
+        },
+        "name": "logOut",
+        "title": "logOut"
+      },
+      "getMe": {
+        "payload": {
+          "$ref": "#/components/schemas/getMe"
+        },
+        "name": "getMe",
+        "title": "getMe"
+      },
+      "getChat": {
+        "payload": {
+          "$ref": "#/components/schemas/getChat"
+        },
+        "name": "getChat",
+        "title": "getChat"
+      },
+      "getChats": {
+        "payload": {
+          "$ref": "#/components/schemas/getChats"
+        },
+        "name": "getChats",
+        "title": "getChats"
+      },
+      "getUser": {
+        "payload": {
+          "$ref": "#/components/schemas/getUser"
+        },
+        "name": "getUser",
+        "title": "getUser"
+      },
+      "getOption": {
+        "payload": {
+          "$ref": "#/components/schemas/getOption"
+        },
+        "name": "getOption",
+        "title": "getOption"
+      },
+      "searchChatMessages": {
+        "payload": {
+          "$ref": "#/components/schemas/searchChatMessages"
+        },
+        "name": "searchChatMessages",
+        "title": "searchChatMessages"
+      },
+      "downloadFile": {
+        "payload": {
+          "$ref": "#/components/schemas/downloadFile"
+        },
+        "name": "downloadFile",
+        "title": "downloadFile"
+      },
+      "close": {
+        "payload": {
+          "$ref": "#/components/schemas/close"
+        },
+        "name": "close",
+        "title": "close"
+      },
+      "updateNewMessage": {
+        "payload": {
+          "$ref": "#/components/schemas/updateNewMessage"
+        },
+        "name": "updateNewMessage",
+        "title": "updateNewMessage"
+      },
+      "updateMessageContent": {
+        "payload": {
+          "$ref": "#/components/schemas/updateMessageContent"
+        },
+        "name": "updateMessageContent",
+        "title": "updateMessageContent"
+      },
+      "updateMessageSendSucceeded": {
+        "payload": {
+          "$ref": "#/components/schemas/updateMessageSendSucceeded"
+        },
+        "name": "updateMessageSendSucceeded",
+        "title": "updateMessageSendSucceeded"
+      },
+      "updateMessageSendFailed": {
+        "payload": {
+          "$ref": "#/components/schemas/updateMessageSendFailed"
+        },
+        "name": "updateMessageSendFailed",
+        "title": "updateMessageSendFailed"
+      },
+      "sendMessage": {
+        "payload": {
+          "$ref": "#/components/schemas/sendMessage"
+        },
+        "name": "sendMessage",
+        "title": "sendMessage"
+      },
+      "editMessageText": {
+        "payload": {
+          "$ref": "#/components/schemas/editMessageText"
+        },
+        "name": "editMessageText",
+        "title": "editMessageText"
+      },
+      "deleteMessages": {
+        "payload": {
+          "$ref": "#/components/schemas/deleteMessages"
+        },
+        "name": "deleteMessages",
+        "title": "deleteMessages"
+      },
+      "forwardMessages": {
+        "payload": {
+          "$ref": "#/components/schemas/forwardMessages"
+        },
+        "name": "forwardMessages",
+        "title": "forwardMessages"
+      },
+      "updateUserStatus": {
+        "payload": {
+          "$ref": "#/components/schemas/updateUserStatus"
+        },
+        "name": "updateUserStatus",
+        "title": "updateUserStatus"
+      },
+      "updateUser": {
+        "payload": {
+          "$ref": "#/components/schemas/updateUser"
+        },
+        "name": "updateUser",
+        "title": "updateUser"
+      },
+      "updateChatTitle": {
+        "payload": {
+          "$ref": "#/components/schemas/updateChatTitle"
+        },
+        "name": "updateChatTitle",
+        "title": "updateChatTitle"
+      },
+      "updateChatLastMessage": {
+        "payload": {
+          "$ref": "#/components/schemas/updateChatLastMessage"
+        },
+        "name": "updateChatLastMessage",
+        "title": "updateChatLastMessage"
+      },
+      "updateChatReadInbox": {
+        "payload": {
+          "$ref": "#/components/schemas/updateChatReadInbox"
+        },
+        "name": "updateChatReadInbox",
+        "title": "updateChatReadInbox"
+      },
+      "updateChatNotificationSettings": {
+        "payload": {
+          "$ref": "#/components/schemas/updateChatNotificationSettings"
+        },
+        "name": "updateChatNotificationSettings",
+        "title": "updateChatNotificationSettings"
+      },
+      "updateFile": {
+        "payload": {
+          "$ref": "#/components/schemas/updateFile"
+        },
+        "name": "updateFile",
+        "title": "updateFile"
+      },
+      "updateConnectionState": {
+        "payload": {
+          "$ref": "#/components/schemas/updateConnectionState"
+        },
+        "name": "updateConnectionState",
+        "title": "updateConnectionState"
+      },
+      "updateOption": {
+        "payload": {
+          "$ref": "#/components/schemas/updateOption"
+        },
+        "name": "updateOption",
+        "title": "updateOption"
+      }
+    },
+    "tags": {
+      "Auth": {
+        "name": "Auth"
+      },
+      "Operations": {
+        "name": "Operations"
+      },
+      "User": {
+        "name": "User"
+      },
+      "Chat": {
+        "name": "Chat"
+      },
+      "Config": {
+        "name": "Config"
+      },
+      "Messages": {
+        "name": "Messages"
+      },
+      "Files": {
+        "name": "Files"
+      },
+      "Lifecycle": {
+        "name": "Lifecycle"
+      },
+      "Updates": {
+        "name": "Updates"
+      },
+      "Connection": {
+        "name": "Connection"
+      }
+    }
+  }
+}

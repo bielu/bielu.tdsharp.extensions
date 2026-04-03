@@ -11,6 +11,11 @@ using Bielu.AspNetCore.AsyncApi.UI;
 // --------------------------------------------------------------------------
 var builder = WebApplication.CreateBuilder(args);
 
+// Required by AsyncAPI document generation (provides ApplicationPartManager).
+// AddControllers also enables assembly scanning for channel classes.
+builder.Services.AddControllers()
+    .AddApplicationPart(typeof(bielu.tdsharp.asyncapi.Channels.TelegramAuthChannel).Assembly);
+
 // Register AsyncAPI services with TDLib server and metadata
 builder.Services.AddAsyncApi(options =>
 {
