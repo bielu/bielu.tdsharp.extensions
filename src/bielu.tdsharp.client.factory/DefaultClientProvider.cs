@@ -48,6 +48,12 @@ public class DefaultClientProvider : IClientProvider
     }
 
     /// <inheritdoc />
+    public TdApi.IClient Create(TimeSpan receiverTimeout)
+    {
+        return new TdClient(new TdJsonClient(_bindings), receiverTimeout);
+    }
+
+    /// <inheritdoc />
     public TdApi.IClient Create(ITdLibBindings bindings, TimeSpan receiverTimeout)
     {
         ArgumentNullException.ThrowIfNull(bindings);
