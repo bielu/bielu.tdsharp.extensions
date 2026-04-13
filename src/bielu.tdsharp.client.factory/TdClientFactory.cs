@@ -55,6 +55,14 @@ public class TdClientFactory(IClientProvider clientProvider) : ITdClientFactory
     }
 
     /// <inheritdoc />
+    public TdApi.IClient GetOrCreateClient(string identifier, TimeSpan receiverTimeout)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(identifier);
+
+        return _clients.GetOrAdd(identifier, _ => _clientProvider.Create(receiverTimeout));
+    }
+
+    /// <inheritdoc />
     public TdApi.IClient GetOrCreateClient(string identifier, ITdLibBindings bindings, Action<TdClient> configure)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(identifier);

@@ -56,6 +56,15 @@ public interface ITdClientFactory
 
     /// <summary>
     /// Gets an existing client or creates a new one for the given identifier,
+    /// using the default bindings and the specified receiver timeout.
+    /// </summary>
+    /// <param name="identifier">A unique identifier for the client (e.g. phone number).</param>
+    /// <param name="receiverTimeout">The timeout for the receiver's polling loop.</param>
+    /// <returns>A configured <see cref="TdApi.IClient"/> instance.</returns>
+    TdApi.IClient GetOrCreateClient(string identifier, TimeSpan receiverTimeout);
+
+    /// <summary>
+    /// Gets an existing client or creates a new one for the given identifier,
     /// using the specified TDLib native bindings and invoking the <paramref name="configure"/>
     /// callback on the underlying <see cref="TdClient"/> when a new client is created.
     /// </summary>

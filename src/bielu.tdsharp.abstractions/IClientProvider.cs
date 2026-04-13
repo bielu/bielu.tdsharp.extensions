@@ -27,6 +27,13 @@ public interface IClientProvider
     TdApi.IClient Create(ITdLibBindings bindings);
 
     /// <summary>
+    /// Creates a new <see cref="TdApi.IClient"/> instance using the default bindings and the specified receiver timeout.
+    /// </summary>
+    /// <param name="receiverTimeout">The timeout for the receiver's polling loop.</param>
+    /// <returns>A <see cref="TdApi.IClient"/> instance.</returns>
+    TdApi.IClient Create(TimeSpan receiverTimeout);
+
+    /// <summary>
     /// Creates a new <see cref="TdApi.IClient"/> instance using the specified bindings and receiver timeout.
     /// </summary>
     /// <param name="bindings">The TDLib native bindings to use.</param>

@@ -41,6 +41,13 @@ public abstract class DecoratorClientProvider : IClientProvider
     }
 
     /// <inheritdoc />
+    public TdApi.IClient Create(TimeSpan receiverTimeout)
+    {
+        var client = _inner.Create(receiverTimeout);
+        return Decorate(client);
+    }
+
+    /// <inheritdoc />
     public TdApi.IClient Create(ITdLibBindings bindings, TimeSpan receiverTimeout)
     {
         var client = _inner.Create(bindings, receiverTimeout);

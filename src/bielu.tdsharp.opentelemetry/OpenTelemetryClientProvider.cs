@@ -53,6 +53,12 @@ public class OpenTelemetryClientProvider : IClientProvider
     }
 
     /// <inheritdoc />
+    public TdApi.IClient Create(TimeSpan receiverTimeout)
+    {
+        return CreateInstrumented(_bindings, receiverTimeout, configure: null);
+    }
+
+    /// <inheritdoc />
     public TdApi.IClient Create(ITdLibBindings bindings, TimeSpan receiverTimeout)
     {
         ArgumentNullException.ThrowIfNull(bindings);
