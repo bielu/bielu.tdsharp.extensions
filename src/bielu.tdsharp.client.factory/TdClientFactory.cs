@@ -5,6 +5,7 @@
 using System.Collections.Concurrent;
 using bielu.tdsharp.abstractions;
 using TdLib;
+using TdLib.Bindings;
 
 namespace bielu.tdsharp.client.factory;
 
@@ -33,6 +34,44 @@ public class TdClientFactory(IClientProvider clientProvider) : ITdClientFactory
         ArgumentNullException.ThrowIfNull(configure);
 
         return _clients.GetOrAdd(identifier, _ => _clientProvider.Create(configure));
+    }
+
+    /// <inheritdoc />
+    public TdApi.IClient GetOrCreateClient(string identifier, ITdLibBindings bindings)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(identifier);
+        ArgumentNullException.ThrowIfNull(bindings);
+
+        return _clients.GetOrAdd(identifier, _ => _clientProvider.Create(bindings));
+    }
+
+    /// <inheritdoc />
+    public TdApi.IClient GetOrCreateClient(string identifier, ITdLibBindings bindings, TimeSpan receiverTimeout)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(identifier);
+        ArgumentNullException.ThrowIfNull(bindings);
+
+        return _clients.GetOrAdd(identifier, _ => _clientProvider.Create(bindings, receiverTimeout));
+    }
+
+    /// <inheritdoc />
+    public TdApi.IClient GetOrCreateClient(string identifier, ITdLibBindings bindings, Action<TdClient> configure)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(identifier);
+        ArgumentNullException.ThrowIfNull(bindings);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        return _clients.GetOrAdd(identifier, _ => _clientProvider.Create(bindings, configure));
+    }
+
+    /// <inheritdoc />
+    public TdApi.IClient GetOrCreateClient(string identifier, ITdLibBindings bindings, TimeSpan receiverTimeout, Action<TdClient> configure)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(identifier);
+        ArgumentNullException.ThrowIfNull(bindings);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        return _clients.GetOrAdd(identifier, _ => _clientProvider.Create(bindings, receiverTimeout, configure));
     }
 
     /// <inheritdoc />

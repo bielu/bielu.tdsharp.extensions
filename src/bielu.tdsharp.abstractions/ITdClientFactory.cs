@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 using TdLib;
+using TdLib.Bindings;
 
 namespace bielu.tdsharp.abstractions;
 
@@ -33,6 +34,49 @@ public interface ITdClientFactory
     /// <param name="configure">An action invoked with the underlying <see cref="TdClient"/> when a new client is created.</param>
     /// <returns>A configured <see cref="TdApi.IClient"/> instance.</returns>
     TdApi.IClient GetOrCreateClient(string identifier, Action<TdClient> configure);
+
+    /// <summary>
+    /// Gets an existing client or creates a new one for the given identifier,
+    /// using the specified TDLib native bindings.
+    /// </summary>
+    /// <param name="identifier">A unique identifier for the client (e.g. phone number).</param>
+    /// <param name="bindings">The TDLib native bindings to use.</param>
+    /// <returns>A configured <see cref="TdApi.IClient"/> instance.</returns>
+    TdApi.IClient GetOrCreateClient(string identifier, ITdLibBindings bindings);
+
+    /// <summary>
+    /// Gets an existing client or creates a new one for the given identifier,
+    /// using the specified TDLib native bindings and receiver timeout.
+    /// </summary>
+    /// <param name="identifier">A unique identifier for the client (e.g. phone number).</param>
+    /// <param name="bindings">The TDLib native bindings to use.</param>
+    /// <param name="receiverTimeout">The timeout for the receiver's polling loop.</param>
+    /// <returns>A configured <see cref="TdApi.IClient"/> instance.</returns>
+    TdApi.IClient GetOrCreateClient(string identifier, ITdLibBindings bindings, TimeSpan receiverTimeout);
+
+    /// <summary>
+    /// Gets an existing client or creates a new one for the given identifier,
+    /// using the specified TDLib native bindings and invoking the <paramref name="configure"/>
+    /// callback on the underlying <see cref="TdClient"/> when a new client is created.
+    /// </summary>
+    /// <param name="identifier">A unique identifier for the client (e.g. phone number).</param>
+    /// <param name="bindings">The TDLib native bindings to use.</param>
+    /// <param name="configure">An action invoked with the underlying <see cref="TdClient"/> when a new client is created.</param>
+    /// <returns>A configured <see cref="TdApi.IClient"/> instance.</returns>
+    TdApi.IClient GetOrCreateClient(string identifier, ITdLibBindings bindings, Action<TdClient> configure);
+
+    /// <summary>
+    /// Gets an existing client or creates a new one for the given identifier,
+    /// using the specified TDLib native bindings and receiver timeout, and invoking
+    /// the <paramref name="configure"/> callback on the underlying <see cref="TdClient"/>
+    /// when a new client is created.
+    /// </summary>
+    /// <param name="identifier">A unique identifier for the client (e.g. phone number).</param>
+    /// <param name="bindings">The TDLib native bindings to use.</param>
+    /// <param name="receiverTimeout">The timeout for the receiver's polling loop.</param>
+    /// <param name="configure">An action invoked with the underlying <see cref="TdClient"/> when a new client is created.</param>
+    /// <returns>A configured <see cref="TdApi.IClient"/> instance.</returns>
+    TdApi.IClient GetOrCreateClient(string identifier, ITdLibBindings bindings, TimeSpan receiverTimeout, Action<TdClient> configure);
 
     /// <summary>
     /// Closes the client for the given identifier without logging out (non-permanent).
