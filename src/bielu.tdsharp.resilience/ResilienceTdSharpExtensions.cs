@@ -69,7 +69,6 @@ internal static class ServiceCollectionDecoratorExtensions
                 $"Register an IClientProvider (e.g. via AddTdSharpOpenTelemetry or DefaultClientProvider) before calling AddTdSharpResilience.");
         }
 
-        var objectFactory = ActivatorUtilities.CreateFactory(typeof(TService), []);
         services.Replace(ServiceDescriptor.Describe(
             typeof(TService),
             sp =>
