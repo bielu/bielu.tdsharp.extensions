@@ -760,7 +760,7 @@ public class DefaultClientProviderTests
     public void Constructor_ThrowsOnNullBindings()
     {
         // Act & Assert
-        var act = () => new DefaultClientProvider(null!);
+        var act = () => new DefaultClientProvider((TdLib.Bindings.ITdLibBindings)null!);
         act.Should().Throw<ArgumentNullException>();
     }
 }

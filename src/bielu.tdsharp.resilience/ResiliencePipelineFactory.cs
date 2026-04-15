@@ -15,10 +15,17 @@ internal static class ResiliencePipelineFactory
 {
     /// <summary>
     /// Builds an <see cref="ResiliencePipeline"/> configured with retry and circuit breaker strategies.
+    /// The retry delay is clamped to at least <see cref="TdSharpResilienceOptions.MinimumRetryDelay"/>
+    /// and uses exponential backoff so delays grow progressively.
     /// </summary>
     internal static ResiliencePipeline Create(TdSharpResilienceOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
+
+        // Clamp to ensure the base delay never falls below the minimum (50 ms).
+        var baseDelay = options.RetryBaseDelay < TdSharpResilienceOptions.MinimumRetryDelay
+            ? TdSharpResilienceOptions.MinimumRetryDelay
+            : options.RetryBaseDelay;
 
         var builder = new ResiliencePipelineBuilder();
 
@@ -26,7 +33,7 @@ internal static class ResiliencePipelineFactory
         {
             MaxRetryAttempts = options.MaxRetryAttempts,
             BackoffType = DelayBackoffType.Exponential,
-            Delay = options.RetryBaseDelay,
+            Delay = baseDelay,
             MaxDelay = options.RetryMaxDelay,
             ShouldHandle = options.ShouldHandle is not null
                 ? new PredicateBuilder().Handle<Exception>(options.ShouldHandle)

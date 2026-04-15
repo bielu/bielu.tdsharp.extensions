@@ -251,13 +251,19 @@ public class ResilienceOptionsTests
         var options = new TdSharpResilienceOptions();
 
         options.MaxRetryAttempts.Should().Be(3);
-        options.RetryBaseDelay.Should().Be(TimeSpan.FromMilliseconds(500));
+        options.RetryBaseDelay.Should().Be(TimeSpan.FromMilliseconds(50));
         options.RetryMaxDelay.Should().Be(TimeSpan.FromSeconds(30));
         options.CircuitBreakerFailureRatio.Should().Be(0.5);
         options.CircuitBreakerMinimumThroughput.Should().Be(10);
         options.CircuitBreakerBreakDuration.Should().Be(TimeSpan.FromSeconds(30));
         options.CircuitBreakerSamplingDuration.Should().Be(TimeSpan.FromSeconds(60));
         options.ShouldHandle.Should().BeNull();
+    }
+
+    [Fact]
+    public void MinimumRetryDelay_Is50Ms()
+    {
+        TdSharpResilienceOptions.MinimumRetryDelay.Should().Be(TimeSpan.FromMilliseconds(50));
     }
 }
 
@@ -306,5 +312,48 @@ public class ResiliencePipelineFactoryTests
     {
         var pipeline = ResiliencePipelineFactory.Create(new TdSharpResilienceOptions());
         pipeline.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void Create_ClampsDelayBelowMinimum()
+    {
+        // Setting delay below 50 ms should still produce a valid pipeline
+        // that retries with at least 50 ms base delay.
+        var options = new TdSharpResilienceOptions
+        {
+            RetryBaseDelay = TimeSpan.FromMilliseconds(1),
+        };
+
+        var act = () => ResiliencePipelineFactory.Create(options);
+        act.Should().NotThrow();
+    }
+}
+
+public class ResilienceTdClientMiddlewareTests
+{
+    [Fact]
+    public void Constructor_ThrowsOnNullOptions()
+    {
+        var act = () => new ResilienceTdClientMiddleware(null!);
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void Decorate_ThrowsOnNullClient()
+    {
+        var middleware = new ResilienceTdClientMiddleware();
+        var act = () => middleware.Decorate(null!);
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void Decorate_ReturnsResilienceDecorator()
+    {
+        var mockClient = Substitute.For<TdApi.IClient>();
+        var middleware = new ResilienceTdClientMiddleware();
+
+        var result = middleware.Decorate(mockClient);
+
+        result.Should().BeOfType<ResilienceTdClientDecorator>();
     }
 }

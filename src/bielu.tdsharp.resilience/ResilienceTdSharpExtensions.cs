@@ -4,7 +4,6 @@
 
 using bielu.tdsharp.abstractions;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace bielu.tdsharp.resilience;
 
@@ -14,9 +13,16 @@ namespace bielu.tdsharp.resilience;
 public static class ResilienceTdSharpExtensions
 {
     /// <summary>
-    /// Decorates the registered <see cref="IClientProvider"/> with a resilience pipeline
-    /// using the default <see cref="TdSharpResilienceOptions"/>.
+    /// Registers a resilience middleware (retry + circuit breaker) that is applied by
+    /// <see cref="IClientProvider"/> implementations before their own outermost decorator.
+    /// Uses the default <see cref="TdSharpResilienceOptions"/>.
     /// </summary>
+    /// <remarks>
+    /// Registration order does not matter. The middleware is resolved at runtime by providers
+    /// such as <c>OpenTelemetryClientProvider</c> and <c>DefaultClientProvider</c>, which
+    /// apply it before their own decorator so that OTel always observes the full operation
+    /// including retries.
+    /// </remarks>
     /// <param name="services">The service collection.</param>
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddTdSharpResilience(this IServiceCollection services)
@@ -25,8 +31,9 @@ public static class ResilienceTdSharpExtensions
     }
 
     /// <summary>
-    /// Decorates the registered <see cref="IClientProvider"/> with a resilience pipeline
-    /// using the specified <see cref="TdSharpResilienceOptions"/> configuration.
+    /// Registers a resilience middleware (retry + circuit breaker) that is applied by
+    /// <see cref="IClientProvider"/> implementations before their own outermost decorator.
+    /// Uses the specified <see cref="TdSharpResilienceOptions"/> configuration.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configure">An action to configure the resilience options.</param>
@@ -37,49 +44,10 @@ public static class ResilienceTdSharpExtensions
     {
         ArgumentNullException.ThrowIfNull(configure);
 
-        services.Decorate<IClientProvider>((inner, _) =>
-        {
-            var options = new TdSharpResilienceOptions();
-            configure(options);
-            return new ResilienceClientProvider(inner, options);
-        });
+        var options = new TdSharpResilienceOptions();
+        configure(options);
 
-        return services;
-    }
-}
-
-/// <summary>
-/// Internal helper to support the Decorate pattern for service collections.
-/// </summary>
-internal static class ServiceCollectionDecoratorExtensions
-{
-    /// <summary>
-    /// Decorates an already-registered service with a new implementation that wraps the original.
-    /// </summary>
-    internal static IServiceCollection Decorate<TService>(
-        this IServiceCollection services,
-        Func<TService, IServiceProvider, TService> decorator)
-        where TService : class
-    {
-        var wrappedDescriptor = services.LastOrDefault(s => s.ServiceType == typeof(TService));
-        if (wrappedDescriptor is null)
-        {
-            throw new InvalidOperationException(
-                $"No service of type {typeof(TService).FullName} has been registered. " +
-                $"Register an IClientProvider (e.g. via AddTdSharpOpenTelemetry or DefaultClientProvider) before calling AddTdSharpResilience.");
-        }
-
-        services.Replace(ServiceDescriptor.Describe(
-            typeof(TService),
-            sp =>
-            {
-                var inner = wrappedDescriptor.ImplementationInstance as TService
-                    ?? (wrappedDescriptor.ImplementationFactory?.Invoke(sp) as TService)
-                    ?? (TService)ActivatorUtilities.GetServiceOrCreateInstance(sp, wrappedDescriptor.ImplementationType!);
-
-                return decorator(inner, sp);
-            },
-            wrappedDescriptor.Lifetime));
+        services.AddSingleton<ITdClientMiddleware>(new ResilienceTdClientMiddleware(options));
 
         return services;
     }

@@ -10,15 +10,23 @@ namespace bielu.tdsharp.resilience;
 public class TdSharpResilienceOptions
 {
     /// <summary>
+    /// The absolute minimum delay allowed between retry attempts (50 ms).
+    /// Values below this floor are clamped automatically.
+    /// </summary>
+    public static readonly TimeSpan MinimumRetryDelay = TimeSpan.FromMilliseconds(50);
+
+    /// <summary>
     /// Gets or sets the maximum number of retry attempts. Default is 3.
     /// </summary>
     public int MaxRetryAttempts { get; set; } = 3;
 
     /// <summary>
-    /// Gets or sets the base delay between retry attempts. Default is 500 ms.
-    /// Exponential backoff is applied: delay × 2^(attempt-1).
+    /// Gets or sets the base delay between retry attempts. Default is 50 ms.
+    /// Exponential backoff is applied (delay × 2^(attempt-1)), producing progressively
+    /// higher delays: 50 ms → 100 ms → 200 ms → 400 ms → …
+    /// Values below <see cref="MinimumRetryDelay"/> (50 ms) are clamped automatically.
     /// </summary>
-    public TimeSpan RetryBaseDelay { get; set; } = TimeSpan.FromMilliseconds(500);
+    public TimeSpan RetryBaseDelay { get; set; } = TimeSpan.FromMilliseconds(50);
 
     /// <summary>
     /// Gets or sets the maximum delay between retry attempts (delay cap). Default is 30 seconds.

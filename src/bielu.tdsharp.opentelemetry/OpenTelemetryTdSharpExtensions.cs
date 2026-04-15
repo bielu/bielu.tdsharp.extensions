@@ -18,6 +18,8 @@ public static class OpenTelemetryTdSharpExtensions
     /// <summary>
     /// Registers an <see cref="IClientProvider"/> with OpenTelemetry instrumentation
     /// using auto-detected bindings and default receiver timeout.
+    /// Any registered <see cref="ITdClientMiddleware"/> services (e.g. resilience) are applied
+    /// before the OTel client decorator.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <returns>The service collection for chaining.</returns>
@@ -30,6 +32,8 @@ public static class OpenTelemetryTdSharpExtensions
     /// <summary>
     /// Registers an <see cref="IClientProvider"/> with OpenTelemetry instrumentation
     /// using the specified bindings and receiver timeout.
+    /// Any registered <see cref="ITdClientMiddleware"/> services (e.g. resilience) are applied
+    /// before the OTel client decorator.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="bindings">The TDLib native bindings to use.</param>
@@ -40,8 +44,8 @@ public static class OpenTelemetryTdSharpExtensions
         ITdLibBindings bindings,
         TimeSpan receiverTimeout)
     {
-        services.AddSingleton<IClientProvider>(
-            new OpenTelemetryClientProvider(bindings, receiverTimeout));
+        services.AddSingleton<IClientProvider>(sp =>
+            new OpenTelemetryClientProvider(bindings, receiverTimeout, sp.GetServices<ITdClientMiddleware>()));
         return services;
     }
 
