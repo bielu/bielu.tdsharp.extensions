@@ -329,31 +329,3 @@ public class ResiliencePipelineFactoryTests
     }
 }
 
-public class ResilienceTdClientMiddlewareTests
-{
-    [Fact]
-    public void Constructor_ThrowsOnNullOptions()
-    {
-        var act = () => new ResilienceTdClientMiddleware(null!);
-        act.Should().Throw<ArgumentNullException>();
-    }
-
-    [Fact]
-    public void Decorate_ThrowsOnNullClient()
-    {
-        var middleware = new ResilienceTdClientMiddleware();
-        var act = () => middleware.Decorate(null!);
-        act.Should().Throw<ArgumentNullException>();
-    }
-
-    [Fact]
-    public void Decorate_ReturnsResilienceDecorator()
-    {
-        var mockClient = Substitute.For<TdApi.IClient>();
-        var middleware = new ResilienceTdClientMiddleware();
-
-        var result = middleware.Decorate(mockClient);
-
-        result.Should().BeOfType<ResilienceTdClientDecorator>();
-    }
-}

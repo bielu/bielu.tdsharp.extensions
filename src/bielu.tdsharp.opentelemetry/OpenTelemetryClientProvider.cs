@@ -12,17 +12,10 @@ namespace bielu.tdsharp.opentelemetry;
 /// An <see cref="IClientProvider"/> that creates a fully instrumented TDLib client stack
 /// with OpenTelemetry tracing and metrics at every layer (JSON client, receiver, and client).
 /// </summary>
-/// <remarks>
-/// Any registered <see cref="ITdClientMiddleware"/> instances (e.g. resilience) are applied
-/// after the native <see cref="TdClient"/> is created but before the outermost
-/// <see cref="OpenTelemetryTdClientDecorator"/>, ensuring that OTel observes the full
-/// operation including retries.
-/// </remarks>
 public class OpenTelemetryClientProvider : IClientProvider
 {
     private readonly ITdLibBindings _bindings;
     private readonly TimeSpan _receiverTimeout;
-    private readonly IEnumerable<ITdClientMiddleware> _middleware;
     private static int _clientCounter;
 
     /// <summary>
@@ -30,17 +23,7 @@ public class OpenTelemetryClientProvider : IClientProvider
     /// with auto-detected bindings and default receiver timeout.
     /// </summary>
     public OpenTelemetryClientProvider()
-        : this(Interop.AutoDetectBindings(), TimeSpan.FromSeconds(0.1), [])
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="OpenTelemetryClientProvider"/> class
-    /// with auto-detected bindings, default receiver timeout, and DI-resolved middleware.
-    /// </summary>
-    /// <param name="middleware">Client middleware to apply before the OTel client decorator.</param>
-    public OpenTelemetryClientProvider(IEnumerable<ITdClientMiddleware> middleware)
-        : this(Interop.AutoDetectBindings(), TimeSpan.FromSeconds(0.1), middleware)
+        : this(Interop.AutoDetectBindings(), TimeSpan.FromSeconds(0.1))
     {
     }
 
@@ -50,55 +33,43 @@ public class OpenTelemetryClientProvider : IClientProvider
     /// <param name="bindings">The TDLib native bindings to use.</param>
     /// <param name="receiverTimeout">The timeout for the receiver's polling loop.</param>
     public OpenTelemetryClientProvider(ITdLibBindings bindings, TimeSpan receiverTimeout)
-        : this(bindings, receiverTimeout, [])
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="OpenTelemetryClientProvider"/> class.
-    /// </summary>
-    /// <param name="bindings">The TDLib native bindings to use.</param>
-    /// <param name="receiverTimeout">The timeout for the receiver's polling loop.</param>
-    /// <param name="middleware">Client middleware to apply before the OTel client decorator.</param>
-    public OpenTelemetryClientProvider(ITdLibBindings bindings, TimeSpan receiverTimeout, IEnumerable<ITdClientMiddleware> middleware)
     {
         ArgumentNullException.ThrowIfNull(bindings);
         _bindings = bindings;
         _receiverTimeout = receiverTimeout;
-        _middleware = middleware ?? [];
     }
 
     /// <inheritdoc />
     public TdApi.IClient Create()
     {
-        return CreateInstrumented(_bindings, _receiverTimeout, configure: null, _middleware);
+        return CreateInstrumented(_bindings, _receiverTimeout, configure: null);
     }
 
     /// <inheritdoc />
     public TdApi.IClient Create(ITdLibBindings bindings)
     {
         ArgumentNullException.ThrowIfNull(bindings);
-        return CreateInstrumented(bindings, _receiverTimeout, configure: null, _middleware);
+        return CreateInstrumented(bindings, _receiverTimeout, configure: null);
     }
 
     /// <inheritdoc />
     public TdApi.IClient Create(TimeSpan receiverTimeout)
     {
-        return CreateInstrumented(_bindings, receiverTimeout, configure: null, _middleware);
+        return CreateInstrumented(_bindings, receiverTimeout, configure: null);
     }
 
     /// <inheritdoc />
     public TdApi.IClient Create(ITdLibBindings bindings, TimeSpan receiverTimeout)
     {
         ArgumentNullException.ThrowIfNull(bindings);
-        return CreateInstrumented(bindings, receiverTimeout, configure: null, _middleware);
+        return CreateInstrumented(bindings, receiverTimeout, configure: null);
     }
 
     /// <inheritdoc />
     public TdApi.IClient Create(Action<TdClient> configure)
     {
         ArgumentNullException.ThrowIfNull(configure);
-        return CreateInstrumented(_bindings, _receiverTimeout, configure, _middleware);
+        return CreateInstrumented(_bindings, _receiverTimeout, configure);
     }
 
     /// <inheritdoc />
@@ -106,7 +77,7 @@ public class OpenTelemetryClientProvider : IClientProvider
     {
         ArgumentNullException.ThrowIfNull(bindings);
         ArgumentNullException.ThrowIfNull(configure);
-        return CreateInstrumented(bindings, _receiverTimeout, configure, _middleware);
+        return CreateInstrumented(bindings, _receiverTimeout, configure);
     }
 
     /// <inheritdoc />
@@ -114,14 +85,10 @@ public class OpenTelemetryClientProvider : IClientProvider
     {
         ArgumentNullException.ThrowIfNull(bindings);
         ArgumentNullException.ThrowIfNull(configure);
-        return CreateInstrumented(bindings, receiverTimeout, configure, _middleware);
+        return CreateInstrumented(bindings, receiverTimeout, configure);
     }
 
-    private static TdApi.IClient CreateInstrumented(
-        ITdLibBindings bindings,
-        TimeSpan receiverTimeout,
-        Action<TdClient>? configure,
-        IEnumerable<ITdClientMiddleware> middleware)
+    private static TdApi.IClient CreateInstrumented(ITdLibBindings bindings, TimeSpan receiverTimeout, Action<TdClient>? configure)
     {
         var clientId = $"client-{Interlocked.Increment(ref _clientCounter)}";
 
@@ -143,14 +110,7 @@ public class OpenTelemetryClientProvider : IClientProvider
         // 6. Invoke the configure callback on the native TdClient before decoration
         configure?.Invoke(client);
 
-        // 7. Apply registered middleware (e.g. resilience) between the raw client and the OTel decorator
-        TdApi.IClient current = client;
-        foreach (var mw in middleware)
-        {
-            current = mw.Decorate(current);
-        }
-
-        // 8. Wrap with OTel instrumentation as the outermost decorator
-        return new OpenTelemetryTdClientDecorator(current);
+        // 7. Wrap the client with OTel instrumentation
+        return new OpenTelemetryTdClientDecorator(client);
     }
 }
