@@ -10,4 +10,6 @@
   <Project Path="bielu.tdsharp.client.factory.tests/bielu.tdsharp.client.factory.tests.csproj" />
   <Project Path="bielu.tdsharp.opentelemetry/bielu.tdsharp.opentelemetry.csproj" />
   <Project Path="bielu.tdsharp.opentelemetry.tests/bielu.tdsharp.opentelemetry.tests.csproj" />
+  <Project Path="bielu.tdsharp.resilience/bielu.tdsharp.resilience.csproj" />
+  <Project Path="bielu.tdsharp.resilience.tests/bielu.tdsharp.resilience.tests.csproj" />
 </Solution>
